@@ -1,0 +1,46 @@
+# Gradle
+.gradle/
+build/
+gradle-app.setting
+!gradle-wrapper.jar
+!gradle-wrapper.properties
+
+# Kotlin
+*.kotlin_module
+*.kotlin_builtins
+
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+
+# Android
+*.apk
+*.ap_
+*.dex
+local.properties
+
+# iOS
+*.xcuserstate
+*.xcworkspace
+xcuserdata/
+
+# Build outputs
+shared/build/
+androidApp/build/
+iosApp/build/
+
+# Node.js (for JS target)
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+yarn.lock
