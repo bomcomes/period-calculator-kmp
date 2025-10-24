@@ -22,6 +22,21 @@ object PeriodCalculator {
     }
     
     /**
+     * 다음 생리 예정일 계산 (PeriodSettings 사용)
+     * 
+     * @param lastPeriodStartDate 마지막 생리 시작일
+     * @param settings 생리 주기 설정 (isAutoCalc에 따라 자동/수동 평균 주기 선택)
+     * @return 다음 생리 예정일
+     */
+    fun calculateNextPeriod(
+        lastPeriodStartDate: LocalDate,
+        settings: PeriodSettings
+    ): LocalDate {
+        val averageCycle = settings.getAverageCycle()
+        return calculateNextPeriod(lastPeriodStartDate, averageCycle)
+    }
+    
+    /**
      * 배란일 계산 (생리 예정일 14일 전)
      * 
      * @param nextPeriodDate 다음 생리 예정일

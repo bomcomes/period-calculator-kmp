@@ -24,6 +24,26 @@ fun calculateNextPeriodJs(
 }
 
 /**
+ * 다음 생리 예정일 계산 (PeriodSettings 사용)
+ */
+@JsName("calculateNextPeriodWithSettings")
+fun calculateNextPeriodWithSettingsJs(
+    lastPeriodStartDate: String,
+    settings: JsPeriodSettings
+): String {
+    val date = LocalDate.parse(lastPeriodStartDate)
+    val periodSettings = PeriodSettings(
+        isAutoCalc = settings.isAutoCalc,
+        autoAverageCycle = settings.autoAverageCycle,
+        autoAverageDay = settings.autoAverageDay,
+        manualAverageCycle = settings.manualAverageCycle,
+        manualAverageDay = settings.manualAverageDay
+    )
+    val result = PeriodCalculator.calculateNextPeriod(date, periodSettings)
+    return result.toString()
+}
+
+/**
  * 배란일 계산
  */
 @JsName("calculateOvulationDate")
@@ -113,6 +133,17 @@ fun estimateBestOvulationDateJs(
         isPillActive = isPillActive
     )?.toString()
 }
+
+/**
+ * 생리 주기 설정 (JavaScript용)
+ */
+data class JsPeriodSettings(
+    val isAutoCalc: Boolean,
+    val autoAverageCycle: Int,
+    val autoAverageDay: Int,
+    val manualAverageCycle: Int,
+    val manualAverageDay: Int
+)
 
 /**
  * 가임기 결과 객체
