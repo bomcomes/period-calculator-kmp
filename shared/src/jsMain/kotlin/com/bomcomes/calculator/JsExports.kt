@@ -2,153 +2,160 @@
 
 package com.bomcomes.calculator
 
+import com.bomcomes.calculator.models.*
 import kotlinx.datetime.LocalDate
 
 /**
- * JavaScript/TypeScript에서 사용하기 위한 Export 함수들
- * 
- * 날짜는 ISO 8601 형식 문자열 (예: "2024-01-01")로 주고받습니다.
+ * JavaScript/TypeScript Export
+ *
+ * 생리 주기 계산을 위한 API
  */
 
 /**
- * 다음 생리 예정일 계산
+ * 생리 주기 정보 계산 (메인 함수)
+ *
+ * @param periodsJson 생리 기록 배열 JSON
+ * @param fromDate 검색 시작일 (ISO 8601)
+ * @param toDate 검색 종료일 (ISO 8601)
+ * @param averageCycle 평균 주기 (일)
+ * @param periodDays 생리 기간 (일)
+ * @return 생리 주기 정보
  */
-@JsName("calculateNextPeriod")
-fun calculateNextPeriodJs(
-    lastPeriodStartDate: String,
-    averageCycleLength: Int
-): String {
-    val date = LocalDate.parse(lastPeriodStartDate)
-    val result = PeriodCalculator.calculateNextPeriod(date, averageCycleLength)
-    return result.toString()
-}
-
-/**
- * 다음 생리 예정일 계산 (PeriodSettings 사용)
- */
-@JsName("calculateNextPeriodWithSettings")
-fun calculateNextPeriodWithSettingsJs(
-    lastPeriodStartDate: String,
-    settings: JsPeriodSettings
-): String {
-    val date = LocalDate.parse(lastPeriodStartDate)
-    val periodSettings = PeriodSettings(
-        isAutoCalc = settings.isAutoCalc,
-        autoAverageCycle = settings.autoAverageCycle,
-        autoAverageDay = settings.autoAverageDay,
-        manualAverageCycle = settings.manualAverageCycle,
-        manualAverageDay = settings.manualAverageDay
-    )
-    val result = PeriodCalculator.calculateNextPeriod(date, periodSettings)
-    return result.toString()
-}
-
-/**
- * 배란일 계산
- */
-@JsName("calculateOvulationDate")
-fun calculateOvulationDateJs(
-    nextPeriodDate: String
-): String {
-    val date = LocalDate.parse(nextPeriodDate)
-    val result = PeriodCalculator.calculateOvulationDate(date)
-    return result.toString()
-}
-
-/**
- * 가임기 계산
- */
-@JsName("calculateFertileWindow")
-fun calculateFertileWindowJs(
-    ovulationDate: String
-): FertileWindowResult {
-    val date = LocalDate.parse(ovulationDate)
-    val (start, end) = PeriodCalculator.calculateFertileWindow(date)
-    return FertileWindowResult(
-        start = start.toString(),
-        end = end.toString()
-    )
-}
-
-/**
- * 배란 테스트 결과를 기반으로 배란일 추정
- */
-@JsName("estimateOvulationFromTests")
-fun estimateOvulationFromTestsJs(
-    testResults: dynamic
-): String? {
-    val testMap = mutableMapOf<LocalDate, Int>()
-    val keys = js("Object.keys(testResults)") as Array<String>
-    
-    keys.forEach { dateStr ->
-        val date = LocalDate.parse(dateStr)
-        val result = (testResults[dateStr] as Number).toInt()
-        testMap[date] = result
+@JsName("calculateMenstrualCycles")
+fun calculateMenstrualCyclesJs(
+    periodsJson: Array<JsPeriodRecord>,
+    fromDate: String,
+    toDate: String,
+    averageCycle: Int = 28,
+    periodDays: Int = 5
+): Array<JsPeriodCycle> {
+    val periods = periodsJson.map { jsRecord ->
+        PeriodRecord(
+            startDate = LocalDate.parse(jsRecord.startDate),
+            endDate = LocalDate.parse(jsRecord.endDate)
+        )
     }
-    
-    return PeriodCalculator.estimateOvulationFromTests(testMap)?.toString()
+    val input = PeriodCycleInput(
+        periods = periods,
+        periodSettings = PeriodSettings(
+            period = averageCycle,
+            days = periodDays,
+            autoPeriod = averageCycle,
+            isAutoCalc = false
+        )
+    )
+
+    val from = LocalDate.parse(fromDate)
+    val to = LocalDate.parse(toDate)
+
+    val result = PeriodCalculator.calculateMenstrualCycles(input, from, to)
+    return result.map { it.toJs() }.toTypedArray()
 }
 
 /**
- * 피임약 복용 상태를 고려한 배란일 계산
+ * 특정 날짜의 달력 상태 계산
+ *
+ * @param periodsJson 생리 기록 배열
+ * @param targetDate 확인할 날짜 (ISO 8601)
+ * @param averageCycle 평균 주기
+ * @param periodDays 생리 기간
+ * @return 달력 상태
  */
-@JsName("calculateOvulationWithPill")
-fun calculateOvulationWithPillJs(
-    isPillActive: Boolean,
-    naturalOvulationDate: String
-): String? {
-    val date = LocalDate.parse(naturalOvulationDate)
-    return PeriodCalculator.calculateOvulationWithPill(isPillActive, date)?.toString()
+@JsName("calculateCalendarStatus")
+fun calculateCalendarStatusJs(
+    periodsJson: Array<JsPeriodRecord>,
+    targetDate: String,
+    averageCycle: Int = 28,
+    periodDays: Int = 5
+): JsCalendarStatus {
+    val periods = periodsJson.map { jsRecord ->
+        PeriodRecord(
+            startDate = LocalDate.parse(jsRecord.startDate),
+            endDate = LocalDate.parse(jsRecord.endDate)
+        )
+    }
+    val input = PeriodCycleInput(
+        periods = periods,
+        periodSettings = PeriodSettings(
+            period = averageCycle,
+            days = periodDays,
+            autoPeriod = averageCycle,
+            isAutoCalc = false
+        )
+    )
+
+    val date = LocalDate.parse(targetDate)
+    val result = PeriodCalculator.calculateCalendarStatus(input, date)
+    return result.toJs()
 }
 
-/**
- * 여러 데이터를 종합하여 최적의 배란일 추정
- */
-@JsName("estimateBestOvulationDate")
-fun estimateBestOvulationDateJs(
-    nextPeriodDate: String,
-    ovulationTestResults: dynamic = null,
-    userInputOvulationDate: String? = null,
-    isPillActive: Boolean = false
-): String? {
-    val nextDate = LocalDate.parse(nextPeriodDate)
-    
-    val testMap = if (ovulationTestResults != null && ovulationTestResults != undefined) {
-        val map = mutableMapOf<LocalDate, Int>()
-        val keys = js("Object.keys(ovulationTestResults)") as Array<String>
-        keys.forEach { dateStr ->
-            val date = LocalDate.parse(dateStr)
-            val result = (ovulationTestResults[dateStr] as Number).toInt()
-            map[date] = result
-        }
-        map
-    } else null
-    
-    val userDate = userInputOvulationDate?.let { LocalDate.parse(it) }
-    
-    return PeriodCalculator.estimateBestOvulationDate(
-        nextPeriodDate = nextDate,
-        ovulationTestResults = testMap,
-        userInputOvulationDate = userDate,
-        isPillActive = isPillActive
-    )?.toString()
-}
+// MARK: - JavaScript 데이터 타입
 
 /**
- * 생리 주기 설정 (JavaScript용)
+ * JS용 생리 기록
  */
-data class JsPeriodSettings(
-    val isAutoCalc: Boolean,
-    val autoAverageCycle: Int,
-    val autoAverageDay: Int,
-    val manualAverageCycle: Int,
-    val manualAverageDay: Int
+data class JsPeriodRecord(
+    val startDate: String,  // ISO 8601
+    val endDate: String     // ISO 8601
 )
 
 /**
- * 가임기 결과 객체
+ * JS용 날짜 범위
  */
-data class FertileWindowResult(
-    val start: String,
-    val end: String
+data class JsDateRange(
+    val startDate: String,
+    val endDate: String
 )
+
+/**
+ * JS용 생리 주기 정보
+ */
+data class JsPeriodCycle(
+    val theDay: JsDateRange?,
+    val predictDays: Array<JsDateRange>,
+    val ovulationDays: Array<JsDateRange>,
+    val childbearingAges: Array<JsDateRange>,
+    val delayDay: JsDateRange?,
+    val delayTheDays: Int,
+    val period: Int
+)
+
+/**
+ * JS용 달력 상태
+ */
+data class JsCalendarStatus(
+    val calendarType: String,       // "NONE", "THE_DAY", "PREDICT", "OVULATION_DAY", "CHILDBEARING_AGE", "DELAY"
+    val gap: Int,
+    val probability: String,        // "LOW", "MIDDLE", "NORMAL", "HIGH", etc.
+    val period: Int
+)
+
+// MARK: - 변환 함수
+
+private fun DateRange.toJs(): JsDateRange {
+    return JsDateRange(
+        startDate = startDate.toString(),
+        endDate = endDate.toString()
+    )
+}
+
+private fun PeriodCycle.toJs(): JsPeriodCycle {
+    return JsPeriodCycle(
+        theDay = theDay?.toJs(),
+        predictDays = predictDays.map { it.toJs() }.toTypedArray(),
+        ovulationDays = ovulationDays.map { it.toJs() }.toTypedArray(),
+        childbearingAges = childbearingAges.map { it.toJs() }.toTypedArray(),
+        delayDay = delayDay?.toJs(),
+        delayTheDays = delayTheDays,
+        period = period
+    )
+}
+
+private fun CalendarStatus.toJs(): JsCalendarStatus {
+    return JsCalendarStatus(
+        calendarType = calendarType.name,
+        gap = gap,
+        probability = probability.name,
+        period = period
+    )
+}
