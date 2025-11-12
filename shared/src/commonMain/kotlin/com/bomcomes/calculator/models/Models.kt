@@ -1,10 +1,12 @@
 package com.bomcomes.calculator.models
 
 import kotlinx.datetime.LocalDate
+import kotlin.js.JsExport
 
 /**
  * 생리 기록
  */
+@JsExport
 data class PeriodRecord(
     val pk: String = "",
     val startDate: LocalDate,
@@ -15,22 +17,28 @@ data class PeriodRecord(
 }
 
 /**
+ * 배란 테스트 결과 타입
+ */
+@JsExport
+enum class TestResult {
+    NEGATIVE,   // 음성 (0)
+    POSITIVE,   // 양성 (1)
+    UNCLEAR     // 불명확 (2)
+}
+
+/**
  * 배란 테스트 결과
  */
+@JsExport
 data class OvulationTest(
     val date: LocalDate,
     val result: TestResult
-) {
-    enum class TestResult {
-        NEGATIVE,   // 음성 (0)
-        POSITIVE,   // 양성 (1)
-        UNCLEAR     // 불명확 (2)
-    }
-}
+)
 
 /**
  * 배란일 직접 입력
  */
+@JsExport
 data class OvulationDay(
     val date: LocalDate
 )
@@ -38,6 +46,7 @@ data class OvulationDay(
 /**
  * 피임약 패키지 정보
  */
+@JsExport
 data class PillPackage(
     val packageStart: LocalDate,
     val pillCount: Int = 21,
@@ -50,6 +59,7 @@ data class PillPackage(
 /**
  * 피임약 설정
  */
+@JsExport
 data class PillSettings(
     val isCalculatingWithPill: Boolean = false,  // 피임약 계산 활성화 여부
     val pillCount: Int = 21,                     // 복용일 수
@@ -57,8 +67,19 @@ data class PillSettings(
 )
 
 /**
+ * 체중 단위
+ */
+@JsExport
+enum class WeightUnit {
+    KG,     // 킬로그램
+    LBS,    // 파운드
+    ST      // 스톤 (영국)
+}
+
+/**
  * 임신 정보 (iOS ThePregnancy 테이블)
  */
+@JsExport
 data class PregnancyInfo(
     val id: String = "",                            // primaryKey (uuid)
     val babyName: String = "",                      // 아기 이름 (태명)
@@ -75,14 +96,6 @@ data class PregnancyInfo(
     val regDate: Long = 0,                          // 등록일 (timestamp)
     val isDeleted: Boolean = false                  // 삭제 여부
 ) {
-    /**
-     * 체중 단위
-     */
-    enum class WeightUnit {
-        KG,     // 킬로그램
-        LBS,    // 파운드
-        ST      // 스톤 (영국)
-    }
 
     /**
      * 임신 주차 계산 (시작일 기준)
@@ -112,6 +125,7 @@ data class PregnancyInfo(
 /**
  * 생리 주기 설정
  */
+@JsExport
 data class PeriodSettings(
     val period: Int = 30,              // 수동 입력 평균 주기
     val days: Int = 5,                 // 생리 기간 (일)
@@ -124,6 +138,7 @@ data class PeriodSettings(
 /**
  * 날짜 범위
  */
+@JsExport
 data class DateRange(
     val startDate: LocalDate,
     val endDate: LocalDate
@@ -137,9 +152,10 @@ data class DateRange(
 }
 
 /**
- * 생리 주기 계산 입력 데이터
+ * 주기 계산 입력 데이터
  */
-data class PeriodCycleInput(
+@JsExport
+data class CycleInput(
     val periods: List<PeriodRecord>,                      // 생리 기록들
     val periodSettings: PeriodSettings = PeriodSettings(), // 생리 주기 설정
     val ovulationTests: List<OvulationTest> = emptyList(), // 배란 테스트 결과들
@@ -150,14 +166,15 @@ data class PeriodCycleInput(
 )
 
 /**
- * 생리 주기 정보
+ * 주기 정보
  */
-data class PeriodCycle(
+@JsExport
+data class CycleInfo(
     val pk: String = "",
-    val theDay: DateRange? = null,                        // 생리 기간
+    val actualPeriod: DateRange? = null,                   // 실제 생리 기간
     val predictDays: List<DateRange> = emptyList(),        // 생리 예정일들
     val ovulationDays: List<DateRange> = emptyList(),      // 배란일들
-    val childbearingAges: List<DateRange> = emptyList(),   // 가임기들
+    val fertileDays: List<DateRange> = emptyList(),        // 가임기
     val delayDay: DateRange? = null,                       // 지연 기간
     val delayTheDays: Int = 0,                             // 지연 일수
     val period: Int = 0,                                   // 주기
@@ -166,35 +183,76 @@ data class PeriodCycle(
     val isOvulationPeriodUserInput: Boolean = false,       // 배란일 사용자 입력 여부
     val pregnancyStartDate: LocalDate? = null,             // 임신 시작일
     val restPill: Int? = null                              // 남은 휴약일
-)
+) {
+    // 하위 호환성을 위한 alias
+    @Deprecated("Use fertileDays instead", ReplaceWith("fertileDays"))
+    val childbearingAges: List<DateRange> get() = fertileDays
+}
+
+/**
+ * 달력 타입
+ */
+@JsExport
+enum class CalendarType {
+    NONE,                // 없음
+    THE_DAY,            // 생리 중
+    PREDICT,            // 생리 예정일
+    OVULATION_DAY,      // 배란일
+    CHILDBEARING_AGE,   // 가임기
+    DELAY               // 생리 지연
+}
+
+/**
+ * 임신 가능성
+ */
+@JsExport
+enum class ProbabilityOfPregnancy {
+    LOW,                        // 낮음
+    MIDDLE,                     // 중간
+    NORMAL,                     // 보통
+    HIGH,                       // 높음
+    PREGNANCY,                  // 임신 중
+    RECOVERY_AFTER_CHILDBIRTH,  // 출산 후 회복기
+    NO_THE_DAY,                 // 생리일 없음
+    INPUT_THE_DAY,              // 생리일 입력 필요
+    HOSPITAL_OVER_DELAY_8       // 8일 이상 지연 (병원 권장)
+}
 
 /**
  * 달력 상태 정보
  */
+@JsExport
 data class CalendarStatus(
     val calendarType: CalendarType,
     val gap: Int,                                          // 생리 시작일로부터 일수
     val probability: ProbabilityOfPregnancy,               // 임신 가능성
     val period: Int                                        // 주기
-) {
-    enum class CalendarType {
-        NONE,                // 없음
-        THE_DAY,            // 생리 중
-        PREDICT,            // 생리 예정일
-        OVULATION_DAY,      // 배란일
-        CHILDBEARING_AGE,   // 가임기
-        DELAY               // 생리 지연
-    }
+)
 
-    enum class ProbabilityOfPregnancy {
-        LOW,                        // 낮음
-        MIDDLE,                     // 중간
-        NORMAL,                     // 보통
-        HIGH,                       // 높음
-        PREGNANCY,                  // 임신 중
-        RECOVERY_AFTER_CHILDBIRTH,  // 출산 후 회복기
-        NO_THE_DAY,                 // 생리일 없음
-        INPUT_THE_DAY,              // 생리일 입력 필요
-        HOSPITAL_OVER_DELAY_8       // 8일 이상 지연 (병원 권장)
-    }
+/**
+ * 단일 날짜의 상세 상태
+ */
+@JsExport
+data class DayStatus(
+    val date: LocalDate,
+    val type: DayType,
+    val gap: Int?,                  // 생리 시작일로부터 며칠째 (없으면 null)
+    val period: Int                 // 주기
+)
+
+/**
+ * 날짜 타입
+ */
+@JsExport
+enum class DayType {
+    NONE,               // 일반일
+    PERIOD_ONGOING,     // 생리 중 (과거/현재)
+    PERIOD_UPCOMING,    // 생리 예정 (미래)
+    PERIOD_PREDICTED,   // 생리 예측일
+    PERIOD_DELAYED,     // 생리 지연 (1-7일)
+    PERIOD_DELAYED_OVER,// 생리 지연 (8일 이상)
+    OVULATION,          // 배란일
+    FERTILE,            // 가임기
+    PREGNANCY,          // 임신 중
+    EMPTY               // 데이터 없음
 }

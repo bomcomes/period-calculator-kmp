@@ -22,6 +22,18 @@ kotlin {
     //     }
     // }
 
+    // JVM 타겟 (테스트 및 디버깅용)
+    jvm {
+        compilations.all {
+            kotlinOptions {
+                jvmTarget = "1.8"
+            }
+        }
+        testRuns["test"].executionTask.configure {
+            useJUnitPlatform()
+        }
+    }
+
     // JavaScript/Node.js 타겟 (SDK 불필요)
     js(IR) {
         nodejs()
@@ -39,11 +51,13 @@ kotlin {
         val commonTest by getting {
             dependencies {
                 implementation(kotlin("test"))
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
             }
         }
 
         // val androidMain by getting
         // val iosMain by creating
+        val jvmMain by getting
         val jsMain by getting
 
         // val iosX64Main by getting

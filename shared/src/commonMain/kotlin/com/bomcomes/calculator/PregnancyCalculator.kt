@@ -1,6 +1,7 @@
 package com.bomcomes.calculator
 
 import com.bomcomes.calculator.models.PregnancyInfo
+import com.bomcomes.calculator.models.WeightUnit
 import kotlinx.datetime.*
 
 /**
@@ -134,11 +135,11 @@ object PregnancyCalculator {
     /**
      * 체중을 kg로 정규화
      */
-    fun normalizeWeightToKg(weight: Float, unit: PregnancyInfo.WeightUnit): Float {
+    fun normalizeWeightToKg(weight: Float, unit: WeightUnit): Float {
         return when (unit) {
-            PregnancyInfo.WeightUnit.KG -> weight
-            PregnancyInfo.WeightUnit.LBS -> lbsToKg(weight)
-            PregnancyInfo.WeightUnit.ST -> stoneToKg(weight)
+            WeightUnit.KG -> weight
+            WeightUnit.LBS -> lbsToKg(weight)
+            WeightUnit.ST -> stoneToKg(weight)
         }
     }
 
