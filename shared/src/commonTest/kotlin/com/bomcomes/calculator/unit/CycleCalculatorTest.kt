@@ -1,6 +1,7 @@
 package com.bomcomes.calculator
 
 import com.bomcomes.calculator.helpers.CycleCalculator
+import com.bomcomes.calculator.utils.DateUtils
 import kotlinx.datetime.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -33,11 +34,16 @@ class CycleCalculatorTest {
 
     @Test
     fun testCalculateDelayDays_noDelay() {
+        val lastTheDayStart = DateUtils.toJulianDay(LocalDate(2025, 1, 5))
+        val fromDate = DateUtils.toJulianDay(LocalDate(2025, 1, 20))
+        val toDate = DateUtils.toJulianDay(LocalDate(2025, 2, 5))
+        val todayOnly = DateUtils.toJulianDay(LocalDate(2025, 1, 20))
+
         val result = CycleCalculator.calculateDelayDays(
-            lastTheDayStart = LocalDate(2025, 1, 5),
-            fromDate = LocalDate(2025, 1, 20),
-            toDate = LocalDate(2025, 2, 5),
-            todayOnly = LocalDate(2025, 1, 20),
+            lastTheDayStart = lastTheDayStart,
+            fromDate = fromDate,
+            toDate = toDate,
+            todayOnly = todayOnly,
             period = 30
         )
         assertEquals(0, result)
@@ -45,11 +51,16 @@ class CycleCalculatorTest {
 
     @Test
     fun testCalculateDelayDays_withDelay() {
+        val lastTheDayStart = DateUtils.toJulianDay(LocalDate(2025, 1, 5))
+        val fromDate = DateUtils.toJulianDay(LocalDate(2025, 2, 1))
+        val toDate = DateUtils.toJulianDay(LocalDate(2025, 2, 28))
+        val todayOnly = DateUtils.toJulianDay(LocalDate(2025, 2, 10)) // 36일 경과
+
         val result = CycleCalculator.calculateDelayDays(
-            lastTheDayStart = LocalDate(2025, 1, 5),
-            fromDate = LocalDate(2025, 2, 1),
-            toDate = LocalDate(2025, 2, 28),
-            todayOnly = LocalDate(2025, 2, 10), // 36일 경과
+            lastTheDayStart = lastTheDayStart,
+            fromDate = fromDate,
+            toDate = toDate,
+            todayOnly = todayOnly,
             period = 30
         )
         assertEquals(7, result) // 실제 계산 결과: 7일 지연

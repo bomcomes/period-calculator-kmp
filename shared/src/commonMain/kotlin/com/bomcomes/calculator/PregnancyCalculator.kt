@@ -100,16 +100,20 @@ object PregnancyCalculator {
      * PregnancyInfo에서 출산 예정일 가져오기 또는 계산
      *
      * @param pregnancy 임신 정보
-     * @return 출산 예정일 (직접 입력되었거나 마지막 생리일로부터 계산)
+     * @return 출산 예정일 (직접 입력되었거나 마지막 생리일로부터 계산) - julianDay
      */
-    fun getDueDateOrCalculate(pregnancy: PregnancyInfo): LocalDate? {
+    fun getDueDateOrCalculate(pregnancy: PregnancyInfo): Double? {
         // 이미 출산 예정일이 있으면 반환
         if (pregnancy.dueDate != null) {
             return pregnancy.dueDate
         }
 
         // 마지막 생리일이 있으면 계산
-        return pregnancy.lastTheDayDate?.let { calculateDueDate(it) }
+        return pregnancy.lastTheDayDate?.let { lastTheDayJulianDay ->
+            val lastTheDayLocalDate = com.bomcomes.calculator.utils.DateUtils.fromJulianDay(lastTheDayJulianDay)
+            val dueLocalDate = calculateDueDate(lastTheDayLocalDate)
+            com.bomcomes.calculator.utils.DateUtils.toJulianDay(dueLocalDate)
+        }
     }
 
     /**

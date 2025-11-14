@@ -1,6 +1,5 @@
 package com.bomcomes.calculator.models
 
-import kotlinx.datetime.LocalDate
 import kotlin.js.JsExport
 
 /**
@@ -9,11 +8,11 @@ import kotlin.js.JsExport
 @JsExport
 data class PeriodRecord(
     val pk: String = "",
-    val startDate: LocalDate,
-    val endDate: LocalDate
+    val startDate: Double,  // julianDay
+    val endDate: Double     // julianDay
 ) {
     val durationDays: Int
-        get() = (endDate.toEpochDays() - startDate.toEpochDays() + 1).toInt()
+        get() = (endDate - startDate + 1).toInt()
 }
 
 /**
@@ -31,7 +30,7 @@ enum class TestResult {
  */
 @JsExport
 data class OvulationTest(
-    val date: LocalDate,
+    val date: Double,  // julianDay
     val result: TestResult
 )
 
@@ -40,7 +39,7 @@ data class OvulationTest(
  */
 @JsExport
 data class OvulationDay(
-    val date: LocalDate
+    val date: Double  // julianDay
 )
 
 /**
@@ -48,7 +47,7 @@ data class OvulationDay(
  */
 @JsExport
 data class PillPackage(
-    val packageStart: LocalDate,
+    val packageStart: Double,  // julianDay
     val pillCount: Int = 21,
     val restDays: Int = 7
 ) {
@@ -84,13 +83,13 @@ data class PregnancyInfo(
     val id: String = "",                            // primaryKey (uuid)
     val babyName: String = "",                      // 아기 이름 (태명)
     val isDueDateDecided: Boolean = false,          // 출산 예정일 결정 여부
-    val lastTheDayDate: LocalDate? = null,          // 마지막 생리 시작일 (출산일 계산용)
-    val dueDate: LocalDate? = null,                 // 출산 예정일 (계산 또는 직접 입력)
+    val lastTheDayDate: Double? = null,             // 마지막 생리 시작일 (julianDay)
+    val dueDate: Double? = null,                    // 출산 예정일 (julianDay)
     val beforePregnancyWeight: Float? = null,       // 임신 전 체중
     val weightUnit: WeightUnit = WeightUnit.KG,     // 체중 단위
     val isMultipleBirth: Boolean = false,           // 다태아 여부
     val isMiscarriage: Boolean = false,             // 유산 여부
-    val startsDate: LocalDate,                      // 임신 시작일 (필수)
+    val startsDate: Double,                         // 임신 시작일 (julianDay, 필수)
     val isEnded: Boolean = false,                   // 출산 완료 여부
     val modifyDate: Long = 0,                       // 수정일 (timestamp)
     val regDate: Long = 0,                          // 등록일 (timestamp)
@@ -100,17 +99,17 @@ data class PregnancyInfo(
     /**
      * 임신 주차 계산 (시작일 기준)
      */
-    fun getWeeksFromStart(currentDate: LocalDate): Int {
-        val days = (currentDate.toEpochDays() - startsDate.toEpochDays()).toInt()
+    fun getWeeksFromStart(currentDate: Double): Int {
+        val days = (currentDate - startsDate).toInt()
         return days / 7
     }
 
     /**
      * 출산 예정일까지 남은 일수
      */
-    fun getDaysUntilDue(currentDate: LocalDate): Int? {
+    fun getDaysUntilDue(currentDate: Double): Int? {
         return dueDate?.let {
-            (it.toEpochDays() - currentDate.toEpochDays()).toInt()
+            (it - currentDate).toInt()
         }
     }
 
@@ -127,12 +126,14 @@ data class PregnancyInfo(
  */
 @JsExport
 data class PeriodSettings(
-    val period: Int = 30,              // 수동 입력 평균 주기
-    val days: Int = 5,                 // 생리 기간 (일)
-    val autoPeriod: Int = 30,          // 자동 계산된 평균 주기
+    val manualAverageCycle: Int = 30,  // 수동 입력 평균 주기
+    val manualAverageDay: Int = 5,     // 수동 입력 평균 생리 기간 (일)
+    val autoAverageCycle: Int = 30,    // 자동 계산된 평균 주기
+    val autoAverageDay: Int = 5,       // 자동 계산된 평균 생리 기간 (일)
     val isAutoCalc: Boolean = false    // 자동 계산 사용 여부
 ) {
-    fun getAverageCycle(): Int = if (isAutoCalc) autoPeriod else period
+    fun getAverageCycle(): Int = if (isAutoCalc) autoAverageCycle else manualAverageCycle
+    fun getAverageDays(): Int = if (isAutoCalc) autoAverageDay else manualAverageDay
 }
 
 /**
@@ -140,15 +141,15 @@ data class PeriodSettings(
  */
 @JsExport
 data class DateRange(
-    val startDate: LocalDate,
-    val endDate: LocalDate
+    val startDate: Double,  // julianDay
+    val endDate: Double     // julianDay
 ) {
-    fun contains(date: LocalDate): Boolean {
+    fun contains(date: Double): Boolean {
         return date >= startDate && date <= endDate
     }
 
     val durationDays: Int
-        get() = (endDate.toEpochDays() - startDate.toEpochDays() + 1).toInt()
+        get() = (endDate - startDate + 1).toInt()
 }
 
 /**
@@ -181,7 +182,7 @@ data class CycleInfo(
     val thePillPeriod: Int? = null,                        // 피임약 기준 주기
     val ovulationDayPeriod: Int? = null,                   // 배란일 기준 주기
     val isOvulationPeriodUserInput: Boolean = false,       // 배란일 사용자 입력 여부
-    val pregnancyStartDate: LocalDate? = null,             // 임신 시작일
+    val pregnancyStartDate: Double? = null,                // 임신 시작일 (julianDay)
     val restPill: Int? = null                              // 남은 휴약일
 ) {
     // 하위 호환성을 위한 alias
@@ -234,7 +235,7 @@ data class CalendarStatus(
  */
 @JsExport
 data class DayStatus(
-    val date: LocalDate,
+    val date: Double,               // julianDay
     val type: DayType,
     val gap: Int?,                  // 생리 시작일로부터 며칠째 (없으면 null)
     val period: Int                 // 주기

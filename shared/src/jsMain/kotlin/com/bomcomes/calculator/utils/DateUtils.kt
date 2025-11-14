@@ -6,33 +6,14 @@ import kotlin.js.JsExport
 import kotlin.math.floor
 
 @JsExport
-object DateUtils {
-    /**
-     * ISO-8601 문자열을 LocalDate로 변환
-     * 지원 형식:
-     * - "2020-03-26"
-     * - "2020-03-26T00:00:00.000Z"
-     */
-    fun parseIso8601(dateString: String): LocalDate {
-        // ISO-8601 문자열에서 날짜 부분만 추출 (YYYY-MM-DD)
-        val datePart = if (dateString.contains('T')) {
-            dateString.substringBefore('T')
-        } else {
-            dateString
-        }
-
-        // LocalDate.parse() 사용 (kotlinx-datetime 표준 방식)
-        return LocalDate.parse(datePart)
-    }
-
+actual object DateUtils {
     /**
      * Julian day를 LocalDate로 변환
      * Julian day는 기원전 4713년 1월 1일부터의 일수
      */
-    fun fromJulianDay(julianDay: Double): LocalDate {
+    actual fun fromJulianDay(julianDay: Double): LocalDate {
         val jd = julianDay + 0.5
         val z = floor(jd).toInt()
-        val f = jd - floor(jd)
 
         val a = if (z < 2299161) {
             z
@@ -61,7 +42,7 @@ object DateUtils {
     /**
      * LocalDate를 Julian day로 변환
      */
-    fun toJulianDay(date: LocalDate): Double {
+    actual fun toJulianDay(date: LocalDate): Double {
         val year = date.year
         val month = date.monthNumber
         val day = date.dayOfMonth
@@ -76,6 +57,24 @@ object DateUtils {
     }
 
     /**
+     * ISO-8601 문자열을 LocalDate로 변환
+     * 지원 형식:
+     * - "2020-03-26"
+     * - "2020-03-26T00:00:00.000Z"
+     */
+    fun parseIso8601(dateString: String): LocalDate {
+        // ISO-8601 문자열에서 날짜 부분만 추출 (YYYY-MM-DD)
+        val datePart = if (dateString.contains('T')) {
+            dateString.substringBefore('T')
+        } else {
+            dateString
+        }
+
+        // LocalDate.parse() 사용 (kotlinx-datetime 표준 방식)
+        return LocalDate.parse(datePart)
+    }
+
+    /**
      * DateInput을 LocalDate로 변환
      * 우선순위: localDate > iso8601 > julianDay
      */
@@ -86,5 +85,30 @@ object DateUtils {
             dateInput.julianDay != null -> fromJulianDay(dateInput.julianDay)
             else -> throw IllegalArgumentException("DateInput must have at least one non-null field")
         }
+    }
+
+    /**
+     * ISO-8601 문자열을 julianDay로 직접 변환 (편의 함수)
+     * 지원 형식:
+     * - "2020-03-26"
+     * - "2020-03-26T00:00:00.000Z"
+     *
+     * @param dateString ISO-8601 형식의 날짜 문자열
+     * @return julianDay (Double)
+     */
+    fun stringToJulianDay(dateString: String): Double {
+        val localDate = parseIso8601(dateString)
+        return toJulianDay(localDate)
+    }
+
+    /**
+     * julianDay를 읽기 쉬운 날짜 문자열로 변환 (편의 함수)
+     *
+     * @param julianDay julianDay (Double)
+     * @return ISO-8601 형식의 날짜 문자열 (YYYY-MM-DD)
+     */
+    fun julianDayToString(julianDay: Double): String {
+        val localDate = fromJulianDay(julianDay)
+        return localDate.toString()
     }
 }

@@ -1,6 +1,7 @@
 package com.bomcomes.calculator.helpers
 
 import com.bomcomes.calculator.models.*
+import com.bomcomes.calculator.utils.DateUtils
 import kotlinx.datetime.*
 
 /**
@@ -14,8 +15,8 @@ internal object PillCalculator {
      * 생리 주기 사이에 피임약 복용이 있는지 확인
      */
     fun checkPillBetweenPeriods(
-        startDate: LocalDate,
-        nextDate: LocalDate,
+        startDate: Double,
+        nextDate: Double,
         pillPackages: List<PillPackage>
     ): Boolean {
         val pillsInRange = pillPackages.filter { pill ->
@@ -25,7 +26,7 @@ internal object PillCalculator {
         if (pillsInRange.isEmpty()) return false
 
         val firstPill = pillsInRange.first()
-        val daysFromPillToNext = firstPill.packageStart.daysUntil(nextDate)
+        val daysFromPillToNext = (nextDate - firstPill.packageStart).toInt()
 
         return daysFromPillToNext >= 5
     }
@@ -34,21 +35,23 @@ internal object PillCalculator {
      * 피임약 기반 예정일 계산
      */
     fun calculatePillBasedPredictDate(
-        startDate: LocalDate,
+        startDate: Double,
         pillPackages: List<PillPackage>,
         pillSettings: PillSettings,
         normalPeriod: Int
-    ): LocalDate? {
-        val pillsAfterStart = pillPackages.filter { it.packageStart >= startDate }
+    ): Double? {
+        val pillsAfterStart = pillPackages.filter {
+            it.packageStart >= startDate
+        }
         if (pillsAfterStart.isEmpty()) return null
 
-        val normalPredictDate = startDate.plus(normalPeriod, DateTimeUnit.DAY)
+        val normalPredictDate = startDate + normalPeriod
         val firstPill = pillsAfterStart.first()
-        val daysFromPillToPredict = firstPill.packageStart.daysUntil(normalPredictDate)
+        val daysFromPillToPredict = (normalPredictDate - firstPill.packageStart).toInt()
 
         return if (daysFromPillToPredict >= 5) {
             val lastPill = pillsAfterStart.last()
-            lastPill.packageStart.plus(pillSettings.pillCount + 2, DateTimeUnit.DAY)
+            lastPill.packageStart + pillSettings.pillCount + 2
         } else {
             null
         }
@@ -58,7 +61,7 @@ internal object PillCalculator {
      * 피임약 복용 중인지 확인
      */
     fun isPillActiveOnDate(
-        date: LocalDate,
+        date: Double,
         pillPackages: List<PillPackage>,
         pillSettings: PillSettings
     ): Boolean {
@@ -66,7 +69,7 @@ internal object PillCalculator {
         if (pillPackages.isEmpty()) return false
 
         for (pillPackage in pillPackages) {
-            val packageEnd = pillPackage.packageStart.plus(pillPackage.pillCount - 1, DateTimeUnit.DAY)
+            val packageEnd = pillPackage.packageStart + pillPackage.pillCount - 1
             if (date >= pillPackage.packageStart && date <= packageEnd) {
                 return true
             }

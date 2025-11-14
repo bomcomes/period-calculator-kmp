@@ -1,12 +1,13 @@
 package com.bomcomes.calculator.helpers
 
 import com.bomcomes.calculator.models.*
+import com.bomcomes.calculator.utils.DateUtils
 import kotlinx.datetime.*
 
 /**
  * Cycle Calculator
  *
- * 생리 주기 관련 핵심 계산 함수들
+ * 주기 계산을 위한 유틸리티
  */
 internal object CycleCalculator {
 
@@ -57,9 +58,9 @@ internal object CycleCalculator {
      */
     fun predictInRange(
         isPredict: Boolean,
-        lastTheDayStart: LocalDate,
-        fromDate: LocalDate,
-        toDate: LocalDate,
+        lastTheDayStart: Double,
+        fromDate: Double,
+        toDate: Double,
         period: Int,
         rangeStart: Int,
         rangeEnd: Int,
@@ -73,13 +74,20 @@ internal object CycleCalculator {
             return emptyList()
         }
 
-        val gapStart = lastTheDayStart.daysUntil(fromDate)
-        val gapEnd = lastTheDayStart.daysUntil(toDate)
+        val gapStart = (fromDate - lastTheDayStart).toInt()
+        val gapEnd = (toDate - lastTheDayStart).toInt()
 
-        val quotientStart = gapStart / actualPeriod
+        var quotientStart = gapStart / actualPeriod
         var remainderStart = gapStart % actualPeriod
         val quotientEnd = gapEnd / actualPeriod
         val remainderEnd = gapEnd % actualPeriod
+
+        // fromDate가 lastTheDayStart보다 이전인 경우 조정
+        if (gapStart < 0) {
+            // 이전 주기에서 시작하므로 현재 주기(0)부터 검색
+            quotientStart = 0
+            remainderStart = 0
+        }
 
         if (remainderEnd < remainderStart) {
             remainderStart = 0
@@ -94,11 +102,13 @@ internal object CycleCalculator {
         val condition1 = remainderStart <= startWithDelay && startWithDelay <= remainderEnd
         val condition2 = remainderStart <= endWithDelay && endWithDelay <= remainderEnd
         val condition3 = startWithDelay <= remainderStart && remainderEnd <= endWithDelay
+        // 여러 주기를 포함하는 경우, 중간 주기들은 전체 범위를 포함하므로 항상 조건 만족
+        val condition4 = quotientStart < quotientEnd
 
-        if (condition1 || condition2 || condition3) {
+        if (condition1 || condition2 || condition3 || condition4) {
             for (index in quotientStart..quotientEnd) {
-                val startDate = lastTheDayStart.plus(actualPeriod * index + startWithDelay, DateTimeUnit.DAY)
-                val endDate = lastTheDayStart.plus(actualPeriod * index + endWithDelay, DateTimeUnit.DAY)
+                val startDate = lastTheDayStart + actualPeriod * index + startWithDelay
+                val endDate = lastTheDayStart + actualPeriod * index + endWithDelay
 
                 // 생리 기간과 생리 예정일 같게 나오는 이슈 방어
                 if (endDate < lastTheDayStart) {
@@ -118,31 +128,37 @@ internal object CycleCalculator {
             }
         }
 
-        return results
+        // toDate를 넘어가는 범위 필터링
+        // 시작일이 toDate보다 이후인 경우는 제외 (완전히 범위 밖)
+        // 시작일이 toDate 이하면 포함 (범위에 걸쳐있거나 범위 내)
+        return results.filter { it.startDate <= toDate }
     }
 
     /**
      * 지연 일수 계산
      */
     fun calculateDelayDays(
-        lastTheDayStart: LocalDate,
-        fromDate: LocalDate,
-        toDate: LocalDate,
-        todayOnly: LocalDate,
+        lastTheDayStart: Double,
+        fromDate: Double,
+        toDate: Double,
+        todayOnly: Double,
         period: Int
     ): Int {
-        // Only calculate delay if today is within the search range
-        // If toDate is in the past (before today), this is a historical calculation, so no delay
-        if (todayOnly < fromDate || todayOnly > toDate) {
+        // Only calculate delay if today is after fromDate
+        // (과거 검색이더라도 오늘 기준으로 지연 계산)
+        if (todayOnly < fromDate) {
             return 0
         }
 
-        val gapEnd = lastTheDayStart.daysUntil(toDate) + 1
+        // toDate가 과거여도 오늘 기준으로 지연 계산
+        val effectiveToDate = if (toDate < todayOnly) todayOnly else toDate
+
+        val gapEnd = (effectiveToDate - lastTheDayStart).toInt() + 1
         if (gapEnd <= period) {
             return 0
         }
 
-        val daysGap = lastTheDayStart.daysUntil(todayOnly)
+        val daysGap = (todayOnly - lastTheDayStart).toInt()
         if (daysGap >= period - 1) {
             return daysGap - period + 1
         }
@@ -154,17 +170,17 @@ internal object CycleCalculator {
      * 지연 기간 계산
      */
     fun calculateDelayPeriod(
-        lastTheDayStart: LocalDate,
-        fromDate: LocalDate,
+        lastTheDayStart: Double,
+        fromDate: Double,
         period: Int,
         delayTheDays: Int
     ): DateRange? {
-        val todayOnly = Clock.System.todayIn(TimeZone.UTC)
+        val todayOnly = DateUtils.toJulianDay(Clock.System.todayIn(TimeZone.UTC))
 
         if (delayTheDays > 0) {
             if (fromDate <= todayOnly) {
-                val startDate = lastTheDayStart.plus(period, DateTimeUnit.DAY)
-                val endDate = lastTheDayStart.plus(period + delayTheDays - 1, DateTimeUnit.DAY)
+                val startDate = lastTheDayStart + period
+                val endDate = lastTheDayStart + period + delayTheDays - 1
                 return DateRange(startDate, endDate)
             }
         }

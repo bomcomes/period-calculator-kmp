@@ -1,7 +1,6 @@
 package com.bomcomes.calculator.repository
 
 import com.bomcomes.calculator.models.*
-import kotlinx.datetime.LocalDate
 
 /**
  * In-Memory Period Repository for Testing
@@ -46,7 +45,7 @@ class InMemoryPeriodRepository : PeriodDataRepository {
         activePregnancy = null
     }
 
-    override suspend fun getPeriods(fromDate: LocalDate, toDate: LocalDate): List<PeriodRecord> {
+    override suspend fun getPeriods(fromDate: Double, toDate: Double): List<PeriodRecord> {
         return periods.filter { period ->
             period.startDate <= toDate && period.endDate >= fromDate
         }.sortedBy { it.startDate }
@@ -56,13 +55,13 @@ class InMemoryPeriodRepository : PeriodDataRepository {
         return periodSettings
     }
 
-    override suspend fun getOvulationTests(fromDate: LocalDate, toDate: LocalDate): List<OvulationTest> {
+    override suspend fun getOvulationTests(fromDate: Double, toDate: Double): List<OvulationTest> {
         return ovulationTests.filter { test ->
             test.date in fromDate..toDate
         }.sortedBy { it.date }
     }
 
-    override suspend fun getUserOvulationDays(fromDate: LocalDate, toDate: LocalDate): List<OvulationDay> {
+    override suspend fun getUserOvulationDays(fromDate: Double, toDate: Double): List<OvulationDay> {
         return userOvulationDays.filter { day ->
             day.date in fromDate..toDate
         }.sortedBy { it.date }
@@ -80,14 +79,14 @@ class InMemoryPeriodRepository : PeriodDataRepository {
         return activePregnancy?.takeIf { it.isActive() }
     }
 
-    override suspend fun getLastPeriodBefore(date: LocalDate, excludeBeforeDate: LocalDate?): PeriodRecord? {
+    override suspend fun getLastPeriodBefore(date: Double, excludeBeforeDate: Double?): PeriodRecord? {
         return periods
             .filter { it.startDate <= date }
             .filter { excludeBeforeDate == null || it.startDate > excludeBeforeDate }
             .maxByOrNull { it.startDate }
     }
 
-    override suspend fun getFirstPeriodAfter(date: LocalDate, excludeAfterDate: LocalDate?): PeriodRecord? {
+    override suspend fun getFirstPeriodAfter(date: Double, excludeAfterDate: Double?): PeriodRecord? {
         return periods
             .filter { it.startDate >= date }
             .filter { excludeAfterDate == null || it.endDate < excludeAfterDate }

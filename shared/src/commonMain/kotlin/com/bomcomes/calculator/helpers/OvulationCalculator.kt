@@ -1,6 +1,7 @@
 package com.bomcomes.calculator.helpers
 
 import com.bomcomes.calculator.models.*
+import com.bomcomes.calculator.utils.DateUtils
 import kotlinx.datetime.*
 
 /**
@@ -13,7 +14,7 @@ internal object OvulationCalculator {
     /**
      * 연속된 배란일 날짜들을 범위로 묶기
      */
-    fun prepareOvulationDayRanges(ovulationDates: List<LocalDate>): List<DateRange> {
+    fun prepareOvulationDayRanges(ovulationDates: List<Double>): List<DateRange> {
         if (ovulationDates.isEmpty()) return emptyList()
 
         val sortedDates = ovulationDates.sorted()
@@ -23,7 +24,8 @@ internal object OvulationCalculator {
             val last = results.lastOrNull()
 
             if (last != null) {
-                val nextDate = last.endDate.plus(1, DateTimeUnit.DAY)
+                val lastEndJulianDay = last.endDate
+                val nextDate = lastEndJulianDay + 1
                 if (nextDate == date) {
                     // 연속된 날짜면 범위 확장
                     results.removeLast()
@@ -45,10 +47,10 @@ internal object OvulationCalculator {
     fun combineOvulationDates(
         ovulationTests: List<OvulationTest>,
         userOvulationDays: List<OvulationDay>,
-        fromDate: LocalDate,
-        toDate: LocalDate
-    ): List<LocalDate> {
-        val combined = mutableListOf<LocalDate>()
+        fromDate: Double,
+        toDate: Double
+    ): List<Double> {
+        val combined = mutableListOf<Double>()
 
         // 1. 배란 테스트 양성 결과
         val positiveTests = ovulationTests.filter { test ->
@@ -78,8 +80,8 @@ internal object OvulationCalculator {
      */
     fun calculateFertileWindowFromOvulation(ovulationRanges: List<DateRange>): List<DateRange> {
         return ovulationRanges.map { ovulation ->
-            val start = ovulation.startDate.minus(2, DateTimeUnit.DAY)
-            val end = ovulation.endDate.plus(1, DateTimeUnit.DAY)
+            val start = ovulation.startDate - 2
+            val end = ovulation.endDate + 1
             DateRange(start, end)
         }
     }
@@ -103,7 +105,7 @@ internal object OvulationCalculator {
 
                 // 임신 기간과 겹침 - 임신 시작 전까지만
                 range.startDate < startsDate -> {
-                    val adjustedEnd = startsDate.minus(1, DateTimeUnit.DAY)
+                    val adjustedEnd = startsDate - 1
                     if (range.startDate < adjustedEnd) {
                         DateRange(range.startDate, adjustedEnd)
                     } else null

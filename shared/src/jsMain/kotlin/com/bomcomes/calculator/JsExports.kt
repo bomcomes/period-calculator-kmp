@@ -3,7 +3,6 @@
 package com.bomcomes.calculator
 
 import com.bomcomes.calculator.models.*
-import kotlinx.datetime.LocalDate
 
 /**
  * JavaScript/TypeScript Export
@@ -15,8 +14,9 @@ import kotlinx.datetime.LocalDate
  * 주기 정보 계산 (메인 함수)
  *
  * @param periodsJson 생리 기록 배열 JSON
- * @param fromDate 검색 시작일 (ISO 8601)
- * @param toDate 검색 종료일 (ISO 8601)
+ * @param fromDate 검색 시작일 (julianDay)
+ * @param toDate 검색 종료일 (julianDay)
+ * @param today 오늘 날짜 (julianDay, 선택사항)
  * @param averageCycle 평균 주기 (일)
  * @param periodDays 생리 기간 (일)
  * @return 주기 정보
@@ -24,40 +24,69 @@ import kotlinx.datetime.LocalDate
 @JsName("calculateCycleInfo")
 fun calculateCycleInfoJs(
     periodsJson: Array<JsPeriodRecord>,
-    fromDate: String,
-    toDate: String,
+    fromDate: Double,
+    toDate: Double,
+    today: Double? = null,
     averageCycle: Int = 28,
     periodDays: Int = 5
 ): Array<JsCycleInfo> {
     val periods = periodsJson.map { jsRecord ->
         PeriodRecord(
-            startDate = LocalDate.parse(jsRecord.startDate),
-            endDate = LocalDate.parse(jsRecord.endDate)
+            pk = jsRecord.pk,
+            startDate = jsRecord.startDate,
+            endDate = jsRecord.endDate
         )
     }
     val input = CycleInput(
         periods = periods,
         periodSettings = PeriodSettings(
-            period = averageCycle,
-            days = periodDays,
-            autoPeriod = averageCycle,
+            manualAverageCycle = averageCycle,
+            manualAverageDay = periodDays,
+            autoAverageCycle = averageCycle,
+            autoAverageDay = periodDays,
             isAutoCalc = false
         )
     )
 
-    val from = LocalDate.parse(fromDate)
-    val to = LocalDate.parse(toDate)
+    val result = PeriodCalculator.calculateCycleInfo(input, fromDate, toDate, today)
 
-    val result = PeriodCalculator.calculateCycleInfo(input, from, to)
-    return result.map { it.toJs() }.toTypedArray()
+    return result.map { cycleInfo ->
+        val actualPeriodJs = cycleInfo.actualPeriod?.let {
+            JsDateRange(startDate = it.startDate, endDate = it.endDate)
+        }
+        val predictDaysJs = cycleInfo.predictDays.map {
+            JsDateRange(startDate = it.startDate, endDate = it.endDate)
+        }.toTypedArray()
+        val ovulationDaysJs = cycleInfo.ovulationDays.map {
+            JsDateRange(startDate = it.startDate, endDate = it.endDate)
+        }.toTypedArray()
+        val fertileDaysJs = cycleInfo.fertileDays.map {
+            JsDateRange(startDate = it.startDate, endDate = it.endDate)
+        }.toTypedArray()
+        val delayPeriodJs = cycleInfo.delayDay?.let {
+            JsDateRange(startDate = it.startDate, endDate = it.endDate)
+        }
+
+        JsCycleInfo(
+            pk = cycleInfo.pk,
+            actualPeriod = actualPeriodJs,
+            predictDays = predictDaysJs,
+            ovulationDays = ovulationDaysJs,
+            fertileDays = fertileDaysJs,
+            delayPeriod = delayPeriodJs,
+            delayDays = cycleInfo.delayTheDays,
+            period = cycleInfo.period,
+            pregnancyStartDate = cycleInfo.pregnancyStartDate
+        )
+    }.toTypedArray()
 }
 
 /**
  * 특정 날짜의 상태 계산
  *
  * @param periodsJson 생리 기록 배열
- * @param targetDate 확인할 날짜 (ISO 8601)
- * @param today 오늘 날짜 (ISO 8601)
+ * @param targetDate 확인할 날짜 (julianDay)
+ * @param today 오늘 날짜 (julianDay)
  * @param averageCycle 평균 주기
  * @param periodDays 생리 기간
  * @return 날짜 상태
@@ -65,39 +94,44 @@ fun calculateCycleInfoJs(
 @JsName("getDayStatus")
 fun getDayStatusJs(
     periodsJson: Array<JsPeriodRecord>,
-    targetDate: String,
-    today: String,
+    targetDate: Double,
+    today: Double,
     averageCycle: Int = 28,
     periodDays: Int = 5
 ): JsDayStatus {
     val periods = periodsJson.map { jsRecord ->
         PeriodRecord(
-            startDate = LocalDate.parse(jsRecord.startDate),
-            endDate = LocalDate.parse(jsRecord.endDate)
+            pk = jsRecord.pk,
+            startDate = jsRecord.startDate,
+            endDate = jsRecord.endDate
         )
     }
     val input = CycleInput(
         periods = periods,
         periodSettings = PeriodSettings(
-            period = averageCycle,
-            days = periodDays,
-            autoPeriod = averageCycle,
+            manualAverageCycle = averageCycle,
+            manualAverageDay = periodDays,
+            autoAverageCycle = averageCycle,
+            autoAverageDay = periodDays,
             isAutoCalc = false
         )
     )
 
-    val date = LocalDate.parse(targetDate)
-    val todayDate = LocalDate.parse(today)
-    val result = PeriodCalculator.getDayStatus(input, date, todayDate)
-    return result.toJs()
+    val result = PeriodCalculator.getDayStatus(input, targetDate, today)
+    return JsDayStatus(
+        date = result.date,
+        type = result.type.name,
+        gap = result.gap,
+        period = result.period
+    )
 }
 
 /**
  * 여러 날짜의 상태를 한 번에 계산
  *
  * @param periodsJson 생리 기록 배열
- * @param dates 확인할 날짜 배열 (ISO 8601)
- * @param today 오늘 날짜 (ISO 8601)
+ * @param dates 확인할 날짜 배열 (julianDay)
+ * @param today 오늘 날짜 (julianDay)
  * @param averageCycle 평균 주기
  * @param periodDays 생리 기간
  * @return 날짜 상태 배열
@@ -105,40 +139,47 @@ fun getDayStatusJs(
 @JsName("getDayStatusesForDates")
 fun getDayStatusesForDatesJs(
     periodsJson: Array<JsPeriodRecord>,
-    dates: Array<String>,
-    today: String,
+    dates: Array<Double>,
+    today: Double,
     averageCycle: Int = 28,
     periodDays: Int = 5
 ): Array<JsDayStatus> {
     val periods = periodsJson.map { jsRecord ->
         PeriodRecord(
-            startDate = LocalDate.parse(jsRecord.startDate),
-            endDate = LocalDate.parse(jsRecord.endDate)
+            pk = jsRecord.pk,
+            startDate = jsRecord.startDate,
+            endDate = jsRecord.endDate
         )
     }
     val input = CycleInput(
         periods = periods,
         periodSettings = PeriodSettings(
-            period = averageCycle,
-            days = periodDays,
-            autoPeriod = averageCycle,
+            manualAverageCycle = averageCycle,
+            manualAverageDay = periodDays,
+            autoAverageCycle = averageCycle,
+            autoAverageDay = periodDays,
             isAutoCalc = false
         )
     )
 
-    val dateList = dates.map { LocalDate.parse(it) }
-    val todayDate = LocalDate.parse(today)
-    val result = PeriodCalculator.getDayStatusesForDates(input, dateList, todayDate)
-    return result.map { it.toJs() }.toTypedArray()
+    val result = PeriodCalculator.getDayStatusesForDates(input, dates.toList(), today)
+    return result.map { dayStatus ->
+        JsDayStatus(
+            date = dayStatus.date,
+            type = dayStatus.type.name,
+            gap = dayStatus.gap,
+            period = dayStatus.period
+        )
+    }.toTypedArray()
 }
 
 /**
  * 날짜 범위의 상태를 한 번에 계산
  *
  * @param periodsJson 생리 기록 배열
- * @param fromDate 시작 날짜 (ISO 8601)
- * @param toDate 종료 날짜 (ISO 8601)
- * @param today 오늘 날짜 (ISO 8601)
+ * @param fromDate 시작 날짜 (julianDay)
+ * @param toDate 종료 날짜 (julianDay)
+ * @param today 오늘 날짜 (julianDay)
  * @param averageCycle 평균 주기
  * @param periodDays 생리 기간
  * @return 날짜 상태 배열
@@ -146,33 +187,39 @@ fun getDayStatusesForDatesJs(
 @JsName("getDayStatuses")
 fun getDayStatusesJs(
     periodsJson: Array<JsPeriodRecord>,
-    fromDate: String,
-    toDate: String,
-    today: String,
+    fromDate: Double,
+    toDate: Double,
+    today: Double,
     averageCycle: Int = 28,
     periodDays: Int = 5
 ): Array<JsDayStatus> {
     val periods = periodsJson.map { jsRecord ->
         PeriodRecord(
-            startDate = LocalDate.parse(jsRecord.startDate),
-            endDate = LocalDate.parse(jsRecord.endDate)
+            pk = jsRecord.pk,
+            startDate = jsRecord.startDate,
+            endDate = jsRecord.endDate
         )
     }
     val input = CycleInput(
         periods = periods,
         periodSettings = PeriodSettings(
-            period = averageCycle,
-            days = periodDays,
-            autoPeriod = averageCycle,
+            manualAverageCycle = averageCycle,
+            manualAverageDay = periodDays,
+            autoAverageCycle = averageCycle,
+            autoAverageDay = periodDays,
             isAutoCalc = false
         )
     )
 
-    val from = LocalDate.parse(fromDate)
-    val to = LocalDate.parse(toDate)
-    val todayDate = LocalDate.parse(today)
-    val result = PeriodCalculator.getDayStatuses(input, from, to, todayDate)
-    return result.map { it.toJs() }.toTypedArray()
+    val result = PeriodCalculator.getDayStatuses(input, fromDate, toDate, today)
+    return result.map { dayStatus ->
+        JsDayStatus(
+            date = dayStatus.date,
+            type = dayStatus.type.name,
+            gap = dayStatus.gap,
+            period = dayStatus.period
+        )
+    }.toTypedArray()
 }
 
 // MARK: - JavaScript 데이터 타입
@@ -181,67 +228,110 @@ fun getDayStatusesJs(
  * JS용 생리 기록
  */
 data class JsPeriodRecord(
-    val startDate: String,  // ISO 8601
-    val endDate: String     // ISO 8601
+    val pk: String = "",
+    val startDate: Double,  // julianDay
+    val endDate: Double     // julianDay
 )
 
 /**
  * JS용 날짜 범위
  */
 data class JsDateRange(
-    val startDate: String,
-    val endDate: String
+    val startDate: Double,  // julianDay
+    val endDate: Double     // julianDay
 )
 
 /**
  * JS용 주기 정보
  */
-data class JsCycleInfo(
+class JsCycleInfo(
+    val pk: String = "",
     val actualPeriod: JsDateRange?,
     val predictDays: Array<JsDateRange>,
     val ovulationDays: Array<JsDateRange>,
     val fertileDays: Array<JsDateRange>,
     val delayPeriod: JsDateRange?,
     val delayDays: Int,
-    val period: Int
+    val period: Int,
+    val pregnancyStartDate: Double? = null  // julianDay
+)
+
+/**
+ * JS용 배란 테스트
+ */
+data class JsOvulationTest(
+    val date: Double,  // julianDay
+    val result: String     // "POSITIVE", "NEGATIVE", "UNCLEAR"
+)
+
+/**
+ * JS용 사용자 배란일
+ */
+data class JsOvulationDay(
+    val date: Double  // julianDay
+)
+
+/**
+ * JS용 피임약 패키지
+ */
+data class JsPillPackage(
+    val packageStart: Double,  // julianDay
+    val pillCount: Int = 21,
+    val restDays: Int = 7
+)
+
+/**
+ * JS용 임신 정보
+ */
+data class JsPregnancyInfo(
+    val id: String = "",
+    val babyName: String = "",
+    val isDueDateDecided: Boolean = false,
+    val lastTheDayDate: Double? = null,  // julianDay
+    val dueDate: Double? = null,         // julianDay
+    val beforePregnancyWeight: Float? = null,
+    val weightUnit: String = "KG",  // "KG", "LBS", "ST"
+    val isMultipleBirth: Boolean = false,
+    val isMiscarriage: Boolean = false,
+    val startsDate: Double,  // julianDay
+    val isEnded: Boolean = false,
+    val modifyDate: Double = 0.0,
+    val regDate: Double = 0.0,
+    val isDeleted: Boolean = false
 )
 
 /**
  * JS용 날짜 상태
  */
 data class JsDayStatus(
-    val date: String,               // ISO 8601
+    val date: Double,               // julianDay
     val type: String,               // "NONE", "PERIOD_ONGOING", "PERIOD_UPCOMING", "PERIOD_PREDICTED", "PERIOD_DELAYED", "PERIOD_DELAYED_OVER", "OVULATION", "FERTILE", "PREGNANCY", "EMPTY"
     val gap: Int?,                  // 생리 시작일로부터 며칠째 (null 가능)
     val period: Int                 // 주기
 )
 
-// MARK: - 변환 함수
+// =============================================================================
+// DateUtils 편의 함수 (JavaScript에서 쉽게 사용하기 위한 래퍼)
+// =============================================================================
 
-private fun DateRange.toJs(): JsDateRange {
-    return JsDateRange(
-        startDate = startDate.toString(),
-        endDate = endDate.toString()
-    )
+/**
+ * ISO-8601 문자열을 julianDay로 변환
+ *
+ * @param dateString ISO-8601 형식의 날짜 문자열 (예: "2024-03-05" 또는 "2024-03-05T00:00:00.000Z")
+ * @return julianDay (Double)
+ */
+@JsName("stringToJulianDay")
+fun stringToJulianDayJs(dateString: String): Double {
+    return com.bomcomes.calculator.utils.DateUtils.stringToJulianDay(dateString)
 }
 
-private fun CycleInfo.toJs(): JsCycleInfo {
-    return JsCycleInfo(
-        actualPeriod = actualPeriod?.toJs(),
-        predictDays = predictDays.map { it.toJs() }.toTypedArray(),
-        ovulationDays = ovulationDays.map { it.toJs() }.toTypedArray(),
-        fertileDays = fertileDays.map { it.toJs() }.toTypedArray(),
-        delayPeriod = delayDay?.toJs(),
-        delayDays = delayTheDays,
-        period = period
-    )
-}
-
-private fun DayStatus.toJs(): JsDayStatus {
-    return JsDayStatus(
-        date = date.toString(),
-        type = type.name,
-        gap = gap,
-        period = period
-    )
+/**
+ * julianDay를 ISO-8601 날짜 문자열로 변환
+ *
+ * @param julianDay julianDay (Double)
+ * @return ISO-8601 형식의 날짜 문자열 (예: "2024-03-05")
+ */
+@JsName("julianDayToString")
+fun julianDayToStringJs(julianDay: Double): String {
+    return com.bomcomes.calculator.utils.DateUtils.julianDayToString(julianDay)
 }

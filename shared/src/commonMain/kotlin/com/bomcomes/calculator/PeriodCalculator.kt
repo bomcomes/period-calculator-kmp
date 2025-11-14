@@ -3,6 +3,7 @@ package com.bomcomes.calculator
 import com.bomcomes.calculator.helpers.*
 import com.bomcomes.calculator.models.*
 import com.bomcomes.calculator.repository.PeriodDataRepository
+import com.bomcomes.calculator.utils.DateUtils
 import kotlinx.datetime.*
 
 /**
@@ -13,6 +14,10 @@ import kotlinx.datetime.*
  */
 object PeriodCalculator {
 
+    init {
+        println("[PeriodCalculator] ${Version.getVersionString()}")
+    }
+
     /**
      * 주기 정보 계산 (Repository 패턴 사용)
      *
@@ -22,14 +27,16 @@ object PeriodCalculator {
      * - Firebase: Firestore
      *
      * @param repository 데이터 제공자 (각 플랫폼이 구현)
-     * @param fromDate 검색 시작 날짜
-     * @param toDate 검색 종료 날짜
+     * @param fromDate 검색 시작 날짜 (julianDay)
+     * @param toDate 검색 종료 날짜 (julianDay)
+     * @param today 오늘 날짜 (선택, 없으면 현재 시스템 시간 사용) (julianDay)
      * @return 주기 정보 리스트
      */
     suspend fun calculateCycleInfo(
         repository: PeriodDataRepository,
-        fromDate: LocalDate,
-        toDate: LocalDate
+        fromDate: Double,
+        toDate: Double,
+        today: Double? = null
     ): List<CycleInfo> {
         val pregnancy = repository.getActivePregnancy()
 
@@ -45,10 +52,11 @@ object PeriodCalculator {
             val firstPeriod = periodsInRange.first()
             val lastPeriod = periodsInRange.last()
 
-            // fromDate가 첫 번째 생리보다 이전이면 이전 생리 추가
-            if (fromDate < firstPeriod.startDate) {
-                val previousPeriod = repository.getLastPeriodBefore(fromDate, excludeBeforeDate)
-                if (previousPeriod != null) {
+            // fromDate가 첫 번째 생리보다 이전이거나 같으면 이전 생리 추가
+            // (첫 번째 생리의 이전 주기 정보도 필요)
+            if (fromDate <= firstPeriod.startDate) {
+                val previousPeriod = repository.getLastPeriodBefore(firstPeriod.startDate - 1, excludeBeforeDate)
+                if (previousPeriod != null && previousPeriod.startDate != firstPeriod.startDate) {
                     periodsInRange.add(0, previousPeriod)
                 }
             }
@@ -61,16 +69,20 @@ object PeriodCalculator {
                 }
             }
         } else {
-            // 범위 내 생리가 없으면 이전/다음 생리 둘 다 가져오기 시도
+            // 범위 내 생리가 없을 때
             val previousPeriod = repository.getLastPeriodBefore(fromDate, excludeBeforeDate)
-            val nextPeriod = repository.getFirstPeriodAfter(toDate, excludeAfterDate)
 
+            // 이전 생리가 있을 때만 처리 (주기 계산 기준이 필요)
             if (previousPeriod != null) {
                 periodsInRange.add(previousPeriod)
+
+                // 이전 생리가 있을 때만 이후 생리도 가져오기
+                val nextPeriod = repository.getFirstPeriodAfter(toDate, excludeAfterDate)
+                if (nextPeriod != null) {
+                    periodsInRange.add(nextPeriod)
+                }
             }
-            if (nextPeriod != null) {
-                periodsInRange.add(nextPeriod)
-            }
+            // 이전 생리가 없으면 이후 생리도 가져오지 않음 (범위에 표시할 주기 정보가 없음)
         }
 
         val periodSettings = repository.getPeriodSettings()
@@ -98,22 +110,25 @@ object PeriodCalculator {
             pregnancy = pregnancy
         )
 
-        // 계산 로직 호출
-        return calculateCycleInfo(input, fromDate, toDate)
+        // 계산 로직 호출 및 반환
+        // 필터링은 이미 CycleCalculator에서 수행되므로 모두 반환
+        return calculateCycleInfo(input, fromDate, toDate, today)
     }
 
     /**
      * 주기 정보 계산 (직접 데이터 전달)
      *
      * @param input 모든 필요한 데이터
-     * @param fromDate 검색 시작 날짜
-     * @param toDate 검색 종료 날짜
+     * @param fromDate 검색 시작 날짜 (julianDay)
+     * @param toDate 검색 종료 날짜 (julianDay)
+     * @param today 오늘 날짜 (선택, 없으면 현재 시스템 시간 사용) (julianDay)
      * @return 주기 정보 리스트
      */
     fun calculateCycleInfo(
         input: CycleInput,
-        fromDate: LocalDate,
-        toDate: LocalDate
+        fromDate: Double,
+        toDate: Double,
+        today: Double? = null
     ): List<CycleInfo> {
         // 생리 기록이 없으면 빈 리스트 반환
         if (input.periods.isEmpty()) return emptyList()
@@ -124,7 +139,7 @@ object PeriodCalculator {
         // 피임약 복용 중인지 확인
         val isOnPill = input.pillSettings.isCalculatingWithPill && input.pillPackages.isNotEmpty()
 
-        val actualToday = Clock.System.todayIn(TimeZone.UTC)
+        val actualToday = today ?: DateUtils.toJulianDay(Clock.System.todayIn(TimeZone.UTC))
 
         val cycles = mutableListOf<CycleInfo>()
 
@@ -136,14 +151,19 @@ object PeriodCalculator {
                 val nextPeriod = sortedPeriods[i + 1]
 
                 // 실제 주기 계산
-                val actualPeriod = currentPeriod.startDate.daysUntil(nextPeriod.startDate)
+                val actualPeriod = (nextPeriod.startDate - currentPeriod.startDate).toInt()
+
+                // 이 주기의 계산 범위: 현재 생리 시작 ~ 다음 생리 시작 전날
+                // 배란일/가임기는 이 범위 내에서만 계산
+                val cycleEndDate = nextPeriod.startDate - 1
+                val cycleToDate = if (cycleEndDate < toDate) cycleEndDate else toDate
 
                 val cycle = setupResult(
                     input = input,
                     periodRecord = currentPeriod,
                     nextPeriod = nextPeriod,
                     fromDate = fromDate,
-                    toDate = toDate,
+                    toDate = cycleToDate,
                     today = actualToday,
                     period = actualPeriod,
                     isThePill = isOnPill
@@ -155,6 +175,7 @@ object PeriodCalculator {
             // 생리가 정확히 2개면 마지막 것도 추가 (평균 주기 사용)
             if (sortedPeriods.size == 2) {
                 val lastPeriod = sortedPeriods.last()
+
                 val cycle = setupResult(
                     input = input,
                     periodRecord = lastPeriod,
@@ -187,7 +208,7 @@ object PeriodCalculator {
             val ovulationCycle = setupOvulation(
                 input = input,
                 fromDate = fromDate,
-                toDate = toDate.plus(2, DateTimeUnit.DAY)  // iOS: toDate + 2일
+                toDate = toDate + 2  // iOS: toDate + 2일
             )
             if (ovulationCycle != null) {
                 cycles.add(ovulationCycle)
@@ -203,23 +224,23 @@ object PeriodCalculator {
      * 날짜 범위의 상태를 한 번에 계산
      *
      * @param input 모든 필요한 데이터
-     * @param fromDate 시작 날짜
-     * @param toDate 종료 날짜
-     * @param today 오늘 날짜 (과거/미래 구분용)
+     * @param fromDate 시작 날짜 (julianDay)
+     * @param toDate 종료 날짜 (julianDay)
+     * @param today 오늘 날짜 (과거/미래 구분용) (julianDay)
      * @return 각 날짜의 상태 리스트
      */
     fun getDayStatuses(
         input: CycleInput,
-        fromDate: LocalDate,
-        toDate: LocalDate,
-        today: LocalDate
+        fromDate: Double,
+        toDate: Double,
+        today: Double
     ): List<DayStatus> {
         // 날짜 범위를 리스트로 변환
-        val dates = mutableListOf<LocalDate>()
+        val dates = mutableListOf<Double>()
         var current = fromDate
         while (current <= toDate) {
             dates.add(current)
-            current = current.plus(1, DateTimeUnit.DAY)
+            current = current + 1
         }
 
         return getDayStatusesForDates(input, dates, today)
@@ -231,14 +252,14 @@ object PeriodCalculator {
      * 캘린더 월별 표시 시 성능 최적화
      *
      * @param input 모든 필요한 데이터
-     * @param dates 확인할 날짜 리스트
-     * @param today 오늘 날짜 (과거/미래 구분용)
+     * @param dates 확인할 날짜 리스트 (julianDay)
+     * @param today 오늘 날짜 (과거/미래 구분용) (julianDay)
      * @return 각 날짜의 상태 리스트
      */
     fun getDayStatusesForDates(
         input: CycleInput,
-        dates: List<LocalDate>,
-        today: LocalDate
+        dates: List<Double>,
+        today: Double
     ): List<DayStatus> {
         if (dates.isEmpty()) return emptyList()
         if (input.periods.isEmpty()) {
@@ -255,7 +276,7 @@ object PeriodCalculator {
         // 범위 내 주기를 한 번만 계산
         val firstDate = dates.minOrNull() ?: return emptyList()
         val lastDate = dates.maxOrNull() ?: return emptyList()
-        val cycles = calculateCycleInfo(input, firstDate, lastDate)
+        val cycles = calculateCycleInfo(input, firstDate, lastDate, today)
 
         if (cycles.isEmpty()) {
             return dates.map { date ->
@@ -274,7 +295,7 @@ object PeriodCalculator {
         return dates.map { date ->
             val type = findDayType(cycles, date, today)
             val gap = if (type != DayType.EMPTY && type != DayType.NONE) {
-                lastPeriod.startDate.daysUntil(date)
+                (date - lastPeriod.startDate).toInt()
             } else null
 
             DayStatus(
@@ -290,14 +311,14 @@ object PeriodCalculator {
      * 단일 날짜의 상태 계산 (간편 함수)
      *
      * @param input 모든 필요한 데이터
-     * @param date 확인할 날짜
-     * @param today 오늘 날짜 (ING/NEXT 구분용)
+     * @param date 확인할 날짜 (julianDay)
+     * @param today 오늘 날짜 (ING/NEXT 구분용) (julianDay)
      * @return 날짜 상태
      */
     fun getDayStatus(
         input: CycleInput,
-        date: LocalDate,
-        today: LocalDate
+        date: Double,
+        today: Double
     ): DayStatus {
         return getDayStatusesForDates(input, listOf(date), today).first()
     }
@@ -305,7 +326,7 @@ object PeriodCalculator {
     /**
      * 주기 리스트에서 특정 날짜의 타입 찾기
      */
-    private fun findDayType(cycles: List<CycleInfo>, date: LocalDate, today: LocalDate): DayType {
+    private fun findDayType(cycles: List<CycleInfo>, date: Double, today: Double): DayType {
         if (cycles.isEmpty()) return DayType.NONE
 
         val cycle = cycles.firstOrNull() ?: return DayType.NONE
@@ -360,9 +381,9 @@ object PeriodCalculator {
         input: CycleInput,
         periodRecord: PeriodRecord,
         nextPeriod: PeriodRecord?,
-        fromDate: LocalDate,
-        toDate: LocalDate,
-        today: LocalDate,
+        fromDate: Double,
+        toDate: Double,
+        today: Double,
         period: Int,
         isThePill: Boolean
     ): CycleInfo {
@@ -386,12 +407,20 @@ object PeriodCalculator {
         )
 
         // 지연 기간
-        val delayPeriod = CycleCalculator.calculateDelayPeriod(
+        val delayPeriodRaw = CycleCalculator.calculateDelayPeriod(
             lastTheDayStart = periodRecord.startDate,
             fromDate = fromDate,
             period = period,
             delayTheDays = delayDays
         )
+
+        // 지연 기간도 범위 필터링: startDate > toDate이면 제외
+        val delayPeriod = delayPeriodRaw?.let {
+            if (it.startDate <= toDate) it else null
+        }
+
+        // delayPeriod가 필터링되면 delayTheDays도 0으로
+        val filteredDelayDays = if (delayPeriod != null) delayDays else 0
 
         // 생리 예정일 계산
         val predictDays = setupPredict(
@@ -404,19 +433,11 @@ object PeriodCalculator {
             isThePill = isThePill
         )
 
-        // 배란일/가임기는 생리 시작일 이후부터만 계산
-        // fromDate가 생리 시작일보다 이전이면 생리 시작일부터 계산
-        val adjustedFromDate = if (fromDate < periodRecord.startDate) {
-            periodRecord.startDate
-        } else {
-            fromDate
-        }
-
         // 배란일 계산
         val ovulationDays = calculateOvulationDays(
             input = input,
             lastPeriodStart = periodRecord.startDate,
-            fromDate = adjustedFromDate,
+            fromDate = fromDate,
             toDate = toDate,
             period = period,
             delayDays = delayDays
@@ -426,7 +447,7 @@ object PeriodCalculator {
         val fertileDays = calculateFertileDays(
             input = input,
             lastPeriodStart = periodRecord.startDate,
-            fromDate = adjustedFromDate,
+            fromDate = fromDate,
             toDate = toDate,
             period = period,
             delayDays = delayDays,
@@ -440,7 +461,7 @@ object PeriodCalculator {
             ovulationDays = ovulationDays,
             fertileDays = fertileDays,
             delayDay = delayPeriod,
-            delayTheDays = delayDays,
+            delayTheDays = filteredDelayDays,
             period = period
         )
     }
@@ -451,13 +472,13 @@ object PeriodCalculator {
     private fun setupPredict(
         input: CycleInput,
         periodRecord: PeriodRecord,
-        fromDate: LocalDate,
-        toDate: LocalDate,
+        fromDate: Double,
+        toDate: Double,
         period: Int,
         delayDays: Int,
         isThePill: Boolean
     ): List<DateRange> {
-        val days = input.periodSettings.days
+        val days = input.periodSettings.getAverageDays()
 
         // 피임약 복용 중이면 피임약 기준 예정일 계산
         if (isThePill) {
@@ -469,7 +490,7 @@ object PeriodCalculator {
             )
 
             if (pillBasedDate != null) {
-                val predictEnd = pillBasedDate.plus(days - 1, DateTimeUnit.DAY)
+                val predictEnd = pillBasedDate + days - 1
                 return listOf(DateRange(pillBasedDate, predictEnd))
             }
         }
@@ -494,9 +515,9 @@ object PeriodCalculator {
      */
     private fun calculateOvulationDays(
         input: CycleInput,
-        lastPeriodStart: LocalDate,
-        fromDate: LocalDate,
-        toDate: LocalDate,
+        lastPeriodStart: Double,
+        fromDate: Double,
+        toDate: Double,
         period: Int,
         delayDays: Int
     ): List<DateRange> {
@@ -518,17 +539,21 @@ object PeriodCalculator {
         }
 
         // 주기 기반 배란일 계산
+        // 배란일은 생리 시작일 이후부터 계산
+        val effectiveFromDate = if (fromDate < lastPeriodStart) lastPeriodStart else fromDate
+
+        // 배란일은 지연과 무관하게 계산 (delayTheDays = 0)
         val (ovulStart, ovulEnd) = CycleCalculator.calculateOvulationRange(period)
         val ovulationDays = CycleCalculator.predictInRange(
             isPredict = false,
             lastTheDayStart = lastPeriodStart,
-            fromDate = fromDate,
+            fromDate = effectiveFromDate,
             toDate = toDate,
             period = period,
             rangeStart = ovulStart,
             rangeEnd = ovulEnd,
-            delayTheDays = delayDays,
-            isMultiple = false
+            delayTheDays = 0,  // 지연과 무관
+            isMultiple = true
         )
 
         return OvulationCalculator.filterByPregnancy(ovulationDays, input.pregnancy)
@@ -539,9 +564,9 @@ object PeriodCalculator {
      */
     private fun calculateFertileDays(
         input: CycleInput,
-        lastPeriodStart: LocalDate,
-        fromDate: LocalDate,
-        toDate: LocalDate,
+        lastPeriodStart: Double,
+        fromDate: Double,
+        toDate: Double,
         period: Int,
         delayDays: Int,
         ovulationDays: List<DateRange>
@@ -556,17 +581,21 @@ object PeriodCalculator {
         }
 
         // 주기 기반 가임기 계산
+        // 가임기는 생리 시작일 이후부터 계산
+        val effectiveFromDate = if (fromDate < lastPeriodStart) lastPeriodStart else fromDate
+
+        // 가임기는 지연과 무관하게 계산 (delayTheDays = 0)
         val (fertileStart, fertileEnd) = CycleCalculator.calculateChildbearingAgeRange(period)
         val fertileDays = CycleCalculator.predictInRange(
             isPredict = false,
             lastTheDayStart = lastPeriodStart,
-            fromDate = fromDate,
+            fromDate = effectiveFromDate,
             toDate = toDate,
             period = period,
             rangeStart = fertileStart,
             rangeEnd = fertileEnd,
-            delayTheDays = delayDays,
-            isMultiple = false
+            delayTheDays = 0,  // 지연과 무관
+            isMultiple = true
         )
 
         return OvulationCalculator.filterByPregnancy(fertileDays, input.pregnancy)
@@ -579,14 +608,14 @@ object PeriodCalculator {
      * 사용자가 입력한 배란일 데이터가 있으면 그것을 사용
      *
      * @param input 입력 데이터
-     * @param fromDate 시작 날짜
-     * @param toDate 종료 날짜
+     * @param fromDate 시작 날짜 (julianDay)
+     * @param toDate 종료 날짜 (julianDay)
      * @return 기본 주기 정보 (배란일만 포함)
      */
     private fun setupOvulation(
         input: CycleInput,
-        fromDate: LocalDate,
-        toDate: LocalDate
+        fromDate: Double,
+        toDate: Double
     ): CycleInfo? {
         // 사용자 입력 배란일이 있는지 확인
         val hasOvulationData = input.userOvulationDays.isNotEmpty() ||
