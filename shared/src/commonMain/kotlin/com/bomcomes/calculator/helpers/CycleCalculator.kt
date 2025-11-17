@@ -33,7 +33,7 @@ internal object CycleCalculator {
     }
 
     /**
-     * 배란일 시작/종료 인덱스 계산
+     * 배란기 시작/종료 인덱스 계산
      */
     fun calculateOvulationRange(period: Int): Pair<Int, Int> {
         var start: Int

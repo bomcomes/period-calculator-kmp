@@ -160,7 +160,7 @@ data class CycleInput(
     val periods: List<PeriodRecord>,                      // 생리 기록들
     val periodSettings: PeriodSettings = PeriodSettings(), // 생리 주기 설정
     val ovulationTests: List<OvulationTest> = emptyList(), // 배란 테스트 결과들
-    val userOvulationDays: List<OvulationDay> = emptyList(), // 사용자 직접 입력 배란일들
+    val userOvulationDays: List<OvulationDay> = emptyList(), // 사용자 직접 입력 배란일 (특정 날짜들)
     val pillPackages: List<PillPackage> = emptyList(),    // 피임약 패키지들
     val pillSettings: PillSettings = PillSettings(),       // 피임약 설정
     val pregnancy: PregnancyInfo? = null                   // 임신 정보
@@ -174,7 +174,7 @@ data class CycleInfo(
     val pk: String = "",
     val actualPeriod: DateRange? = null,                   // 실제 생리 기간
     val predictDays: List<DateRange> = emptyList(),        // 생리 예정일들
-    val ovulationDays: List<DateRange> = emptyList(),      // 배란일들
+    val ovulationDays: List<DateRange> = emptyList(),      // 배란기들
     val fertileDays: List<DateRange> = emptyList(),        // 가임기
     val delayDay: DateRange? = null,                       // 지연 기간
     val delayTheDays: Int = 0,                             // 지연 일수
@@ -198,7 +198,7 @@ enum class CalendarType {
     NONE,                // 없음
     THE_DAY,            // 생리 중
     PREDICT,            // 생리 예정일
-    OVULATION_DAY,      // 배란일
+    OVULATION_DAY,      // 배란기
     CHILDBEARING_AGE,   // 가임기
     DELAY               // 생리 지연
 }
@@ -252,7 +252,7 @@ enum class DayType {
     PERIOD_PREDICTED,   // 생리 예측일
     PERIOD_DELAYED,     // 생리 지연 (1-7일)
     PERIOD_DELAYED_OVER,// 생리 지연 (8일 이상)
-    OVULATION,          // 배란일
+    OVULATION,          // 배란기
     FERTILE,            // 가임기
     PREGNANCY,          // 임신 중
     EMPTY               // 데이터 없음

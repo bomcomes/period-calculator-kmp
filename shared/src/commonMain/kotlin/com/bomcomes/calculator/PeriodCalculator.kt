@@ -9,7 +9,7 @@ import kotlinx.datetime.*
 /**
  * Period Calculator
  *
- * 생리 주기, 배란일, 가임기 계산
+ * 생리 주기, 배란기, 가임기 계산
  * iOS PredictCalculator 로직 기반
  */
 object PeriodCalculator {
@@ -87,7 +87,7 @@ object PeriodCalculator {
 
         val periodSettings = repository.getPeriodSettings()
 
-        // 배란일 데이터는 항상 가져옴 (사용자가 입력했을 수 있음)
+        // 배란기 데이터는 항상 가져옴 (사용자가 입력했을 수 있음)
         val ovulationTests = repository.getOvulationTests(fromDate, toDate)
         val userOvulationDays = repository.getUserOvulationDays(fromDate, toDate)
 
@@ -154,7 +154,7 @@ object PeriodCalculator {
                 val actualPeriod = (nextPeriod.startDate - currentPeriod.startDate).toInt()
 
                 // 이 주기의 계산 범위: 현재 생리 시작 ~ 다음 생리 시작 전날
-                // 배란일/가임기는 이 범위 내에서만 계산
+                // 배란기/가임기는 이 범위 내에서만 계산
                 val cycleEndDate = nextPeriod.startDate - 1
                 val cycleToDate = if (cycleEndDate < toDate) cycleEndDate else toDate
 
@@ -204,7 +204,7 @@ object PeriodCalculator {
             )
             cycles.add(cycle)
         } else {
-            // 생리가 0개면 기본 배란일 정보 제공 (첫 사용자)
+            // 생리가 0개면 기본 배란기 정보 제공 (첫 사용자)
             val ovulationCycle = setupOvulation(
                 input = input,
                 fromDate = fromDate,
@@ -359,7 +359,7 @@ object PeriodCalculator {
             return DayType.PERIOD_PREDICTED
         }
 
-        // 배란일
+        // 배란기
         if (cycle.ovulationDays.any { it.contains(date) }) {
             return DayType.OVULATION
         }
@@ -433,7 +433,7 @@ object PeriodCalculator {
             isThePill = isThePill
         )
 
-        // 배란일 계산
+        // 배란기 계산
         val ovulationDays = calculateOvulationDays(
             input = input,
             lastPeriodStart = periodRecord.startDate,
@@ -511,7 +511,7 @@ object PeriodCalculator {
     }
 
     /**
-     * 배란일 계산
+     * 배란기 계산
      */
     private fun calculateOvulationDays(
         input: CycleInput,
@@ -526,7 +526,7 @@ object PeriodCalculator {
                           input.ovulationTests.any { it.result == TestResult.POSITIVE }
 
         if (hasUserInput) {
-            // 사용자 입력 데이터 기반 배란일
+            // 사용자 입력 데이터 기반 배란기
             val combinedDates = OvulationCalculator.combineOvulationDates(
                 ovulationTests = input.ovulationTests,
                 userOvulationDays = input.userOvulationDays,
@@ -538,11 +538,11 @@ object PeriodCalculator {
             return OvulationCalculator.filterByPregnancy(ovulationRanges, input.pregnancy)
         }
 
-        // 주기 기반 배란일 계산
-        // 배란일은 생리 시작일 이후부터 계산
+        // 주기 기반 배란기 계산
+        // 배란기는 생리 시작일 이후부터 계산
         val effectiveFromDate = if (fromDate < lastPeriodStart) lastPeriodStart else fromDate
 
-        // 배란일은 지연과 무관하게 계산 (delayTheDays = 0)
+        // 배란기는 지연과 무관하게 계산 (delayTheDays = 0)
         val (ovulStart, ovulEnd) = CycleCalculator.calculateOvulationRange(period)
         val ovulationDays = CycleCalculator.predictInRange(
             isPredict = false,
@@ -571,7 +571,7 @@ object PeriodCalculator {
         delayDays: Int,
         ovulationDays: List<DateRange>
     ): List<DateRange> {
-        // 사용자가 직접 입력하거나 테스트 양성인 경우만 배란일 기준으로 가임기 계산 (배란일 -2 ~ +1)
+        // 사용자가 배란일을 직접 입력하거나 테스트 양성인 경우만 배란일 기준으로 가임기 계산 (배란일 -2 ~ +1)
         val hasUserInput = input.userOvulationDays.isNotEmpty() ||
                           input.ovulationTests.any { it.result == TestResult.POSITIVE }
 
@@ -602,7 +602,7 @@ object PeriodCalculator {
     }
 
     /**
-     * 생리 기록이 없을 때 기본 배란일 정보 제공
+     * 생리 기록이 없을 때 기본 배란기 정보 제공
      *
      * 첫 사용자를 위한 기본 정보 제공
      * 사용자가 입력한 배란일 데이터가 있으면 그것을 사용
@@ -610,7 +610,7 @@ object PeriodCalculator {
      * @param input 입력 데이터
      * @param fromDate 시작 날짜 (julianDay)
      * @param toDate 종료 날짜 (julianDay)
-     * @return 기본 주기 정보 (배란일만 포함)
+     * @return 기본 주기 정보 (배란기만 포함)
      */
     private fun setupOvulation(
         input: CycleInput,

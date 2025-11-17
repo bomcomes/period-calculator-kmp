@@ -7,12 +7,12 @@ import kotlinx.datetime.*
 /**
  * Ovulation Calculator
  *
- * 배란일 관련 계산 함수들
+ * 배란기 관련 계산 함수들
  */
 internal object OvulationCalculator {
 
     /**
-     * 연속된 배란일 날짜들을 범위로 묶기
+     * 연속된 배란기 날짜들을 범위로 묶기
      */
     fun prepareOvulationDayRanges(ovulationDates: List<Double>): List<DateRange> {
         if (ovulationDates.isEmpty()) return emptyList()
@@ -42,7 +42,7 @@ internal object OvulationCalculator {
     }
 
     /**
-     * 배란일 우선순위로 결합
+     * 배란기 우선순위로 결합
      */
     fun combineOvulationDates(
         ovulationTests: List<OvulationTest>,
