@@ -115,6 +115,11 @@ internal object CycleCalculator {
                     return emptyList()
                 }
 
+                // 조회 범위와 겹치는지 확인
+                if (!(startDate <= toDate && endDate >= fromDate)) {
+                    continue  // 겹치지 않으면 skip
+                }
+
                 if (startDate < lastTheDayStart) {
                     results.add(DateRange(lastTheDayStart, endDate))
                 } else if (!(isPredict && startDate == lastTheDayStart)) {

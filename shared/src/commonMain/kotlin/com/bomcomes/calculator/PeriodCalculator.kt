@@ -54,7 +54,7 @@ object PeriodCalculator {
 
             // fromDate가 첫 번째 생리보다 이전이거나 같으면 이전 생리 추가
             // (첫 번째 생리의 이전 주기 정보도 필요)
-            if (fromDate <= firstPeriod.startDate) {
+            if (fromDate < firstPeriod.startDate) {
                 val previousPeriod = repository.getLastPeriodBefore(firstPeriod.startDate - 1, excludeBeforeDate)
                 if (previousPeriod != null && previousPeriod.startDate != firstPeriod.startDate) {
                     periodsInRange.add(0, previousPeriod)
@@ -542,19 +542,39 @@ object PeriodCalculator {
         // 배란기는 생리 시작일 이후부터 계산
         val effectiveFromDate = if (fromDate < lastPeriodStart) lastPeriodStart else fromDate
 
-        // 배란기는 지연과 무관하게 계산 (delayTheDays = 0)
         val (ovulStart, ovulEnd) = CycleCalculator.calculateOvulationRange(period)
-        val ovulationDays = CycleCalculator.predictInRange(
-            isPredict = false,
-            lastTheDayStart = lastPeriodStart,
-            fromDate = effectiveFromDate,
-            toDate = toDate,
-            period = period,
-            rangeStart = ovulStart,
-            rangeEnd = ovulEnd,
-            delayTheDays = 0,  // 지연과 무관
-            isMultiple = true
-        )
+
+        // 첫 번째 주기의 끝 날짜 계산
+        val firstCycleEnd = lastPeriodStart + period - 1
+
+        // 배란기 계산
+        val ovulationDays = if (delayDays > 0) {
+            // 지연이 있으면 실제 생리 기록(첫 번째 주기)에 대해서만 계산
+            CycleCalculator.predictInRange(
+                isPredict = false,
+                lastTheDayStart = lastPeriodStart,
+                fromDate = effectiveFromDate,
+                toDate = minOf(toDate, firstCycleEnd),  // 첫 주기 범위로 제한
+                period = period,
+                rangeStart = ovulStart,
+                rangeEnd = ovulEnd,
+                delayTheDays = 0,  // 실제 생리 기록은 delay 미적용
+                isMultiple = false
+            )
+        } else {
+            // 지연이 없으면 모든 주기에 대해 계산
+            CycleCalculator.predictInRange(
+                isPredict = false,
+                lastTheDayStart = lastPeriodStart,
+                fromDate = effectiveFromDate,
+                toDate = toDate,
+                period = period,
+                rangeStart = ovulStart,
+                rangeEnd = ovulEnd,
+                delayTheDays = 0,
+                isMultiple = true
+            )
+        }
 
         return OvulationCalculator.filterByPregnancy(ovulationDays, input.pregnancy)
     }
@@ -584,19 +604,39 @@ object PeriodCalculator {
         // 가임기는 생리 시작일 이후부터 계산
         val effectiveFromDate = if (fromDate < lastPeriodStart) lastPeriodStart else fromDate
 
-        // 가임기는 지연과 무관하게 계산 (delayTheDays = 0)
         val (fertileStart, fertileEnd) = CycleCalculator.calculateChildbearingAgeRange(period)
-        val fertileDays = CycleCalculator.predictInRange(
-            isPredict = false,
-            lastTheDayStart = lastPeriodStart,
-            fromDate = effectiveFromDate,
-            toDate = toDate,
-            period = period,
-            rangeStart = fertileStart,
-            rangeEnd = fertileEnd,
-            delayTheDays = 0,  // 지연과 무관
-            isMultiple = true
-        )
+
+        // 첫 번째 주기의 끝 날짜 계산
+        val firstCycleEnd = lastPeriodStart + period - 1
+
+        // 가임기 계산
+        val fertileDays = if (delayDays > 0) {
+            // 지연이 있으면 실제 생리 기록(첫 번째 주기)에 대해서만 계산
+            CycleCalculator.predictInRange(
+                isPredict = false,
+                lastTheDayStart = lastPeriodStart,
+                fromDate = effectiveFromDate,
+                toDate = minOf(toDate, firstCycleEnd),  // 첫 주기 범위로 제한
+                period = period,
+                rangeStart = fertileStart,
+                rangeEnd = fertileEnd,
+                delayTheDays = 0,  // 실제 생리 기록은 delay 미적용
+                isMultiple = false
+            )
+        } else {
+            // 지연이 없으면 모든 주기에 대해 계산
+            CycleCalculator.predictInRange(
+                isPredict = false,
+                lastTheDayStart = lastPeriodStart,
+                fromDate = effectiveFromDate,
+                toDate = toDate,
+                period = period,
+                rangeStart = fertileStart,
+                rangeEnd = fertileEnd,
+                delayTheDays = 0,
+                isMultiple = true
+            )
+        }
 
         return OvulationCalculator.filterByPregnancy(fertileDays, input.pregnancy)
     }

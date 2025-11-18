@@ -1295,8 +1295,18 @@ class ShortCycleTest {
         // 생리 지연일 검증 (8일로 계산됨)
         assertEquals(8, cycle.delayTheDays, "생리 지연일: 8일")
 
-        // 지연 기간 검증 (8일 이상이면 표시 안 함)
-        assertTrue(cycle.delayDay == null, "지연 기간 없음 (8일 이상)")
+        // 지연 기간 검증 (2025-03-17 ~ 2025-03-24)
+        assertTrue(cycle.delayDay != null, "지연 기간 있음")
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 3, 17)),
+            cycle.delayDay?.startDate,
+            "지연 시작: 2025-03-17"
+        )
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 3, 24)),
+            cycle.delayDay?.endDate,
+            "지연 종료: 2025-03-24"
+        )
 
         // 생리 예정일 검증 (8일 이상은 표시하지 않음)
         assertEquals(0, cycle.predictDays.size, "생리 예정일 없음 (8일 이상 지연 시 표시 안 함)")
