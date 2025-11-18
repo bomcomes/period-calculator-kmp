@@ -1164,7 +1164,7 @@ class BasicRegularCycleTest {
      * - 지연 기간: 2025-03-26 ~ 2025-04-01 (예정일부터 오늘까지)
      * - 생리 예정일들: 2025-04-02 ~ 2025-04-06 (지연 다음날부터 5일간, 지연으로 밀린 예정일)
      * - 배란기들: 없음 (조회 범위 밖)
-     * - 가임기들: 없음 (조회 범위 밖)
+     * - 가임기들: 2025-04-09 ~ 2025-04-20 (지연 7일 적용된 예측 주기의 가임기)
      * - 주기: 28일
      */
     @Test
@@ -1232,8 +1232,18 @@ class BasicRegularCycleTest {
         // 배란기 검증 (조회 범위 밖)
         assertEquals(0, cycle.ovulationDays.size, "배란기 없음 (조회 범위 밖)")
 
-        // 가임기 검증 (조회 범위 밖)
-        assertEquals(0, cycle.fertileDays.size, "가임기 없음 (조회 범위 밖)")
+        // 가임기 검증 (지연 적용된 미래 주기)
+        assertEquals(1, cycle.fertileDays.size, "가임기 1개")
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 4, 9)),
+            cycle.fertileDays[0].startDate,
+            "가임기 시작: 2025-04-09"
+        )
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 4, 20)),
+            cycle.fertileDays[0].endDate,
+            "가임기 종료: 2025-04-20"
+        )
 
         // 주기 검증
         assertEquals(28, cycle.period, "주기: 28일")

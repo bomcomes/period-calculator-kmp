@@ -1231,11 +1231,21 @@ class ShortCycleTest {
             "예정일 종료: 2025-03-28"
         )
 
-        // 배란기 검증
+        // 배란기 검증 (조회 범위 밖)
         assertEquals(0, cycle.ovulationDays.size, "배란기 없음 (조회 범위 밖)")
 
-        // 가임기 검증
-        assertEquals(0, cycle.fertileDays.size, "가임기 없음 (조회 범위 밖)")
+        // 가임기 검증 (지연 적용된 미래 주기)
+        assertEquals(1, cycle.fertileDays.size, "가임기 1개")
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 3, 30)),
+            cycle.fertileDays[0].startDate,
+            "가임기 시작: 2025-03-30"
+        )
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 4, 7)),
+            cycle.fertileDays[0].endDate,
+            "가임기 종료: 2025-04-07"
+        )
 
         // 주기 검증
         assertEquals(25, cycle.period, "주기: 25일")
