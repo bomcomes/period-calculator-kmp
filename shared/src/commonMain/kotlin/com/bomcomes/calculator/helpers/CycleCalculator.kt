@@ -64,8 +64,7 @@ internal object CycleCalculator {
         period: Int,
         rangeStart: Int,
         rangeEnd: Int,
-        delayTheDays: Int = 0,
-        isMultiple: Boolean = true
+        delayTheDays: Int = 0
     ): List<DateRange> {
         val actualPeriod = if (period == 0) 1 else period
 
@@ -124,11 +123,6 @@ internal object CycleCalculator {
                     results.add(DateRange(lastTheDayStart, endDate))
                 } else if (!(isPredict && startDate == lastTheDayStart)) {
                     results.add(DateRange(startDate, endDate))
-                }
-
-                // 생리 사이의 가임기/배란기는 한번만 나오도록
-                if (!isMultiple) {
-                    break
                 }
             }
         }

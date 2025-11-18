@@ -558,8 +558,7 @@ object PeriodCalculator {
                 period = period,
                 rangeStart = ovulStart,
                 rangeEnd = ovulEnd,
-                delayTheDays = 0,  // 실제 생리 기록은 delay 미적용
-                isMultiple = false
+                delayTheDays = 0  // 실제 생리 기록은 delay 미적용
             )
         } else {
             // 지연이 없으면 모든 주기에 대해 계산
@@ -571,8 +570,7 @@ object PeriodCalculator {
                 period = period,
                 rangeStart = ovulStart,
                 rangeEnd = ovulEnd,
-                delayTheDays = 0,
-                isMultiple = true
+                delayTheDays = 0
             )
         }
 
@@ -620,8 +618,7 @@ object PeriodCalculator {
                 period = period,
                 rangeStart = fertileStart,
                 rangeEnd = fertileEnd,
-                delayTheDays = 0,  // 실제 생리 기록은 delay 미적용
-                isMultiple = false
+                delayTheDays = 0  // 실제 생리 기록은 delay 미적용
             )
         } else {
             // 지연이 없으면 모든 주기에 대해 계산
@@ -633,8 +630,7 @@ object PeriodCalculator {
                 period = period,
                 rangeStart = fertileStart,
                 rangeEnd = fertileEnd,
-                delayTheDays = 0,
-                isMultiple = true
+                delayTheDays = 0
             )
         }
 
