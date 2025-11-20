@@ -31,6 +31,14 @@ class InMemoryPeriodRepository : PeriodDataRepository {
         userOvulationDays.add(day)
     }
 
+    fun addPillPackage(pillPackage: PillPackage) {
+        pillPackages.add(pillPackage)
+    }
+
+    fun setPillSettings(settings: PillSettings) {
+        pillSettings = settings
+    }
+
     fun setActivePregnancy(pregnancy: PregnancyInfo?) {
         activePregnancy = pregnancy
     }
