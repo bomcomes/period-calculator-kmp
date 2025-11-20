@@ -246,7 +246,7 @@ class BasicRegularCycleTest {
      * - 주기: 28일
      */
     @Test
-    fun testTC_01_03_oneMonthFutureQuery() = runTest {
+    fun testTC_01_03_oneMonthQuery() = runTest {
         val repository = createRepository()
 
         val searchFrom = LocalDate(2025, 2, 26)
@@ -340,7 +340,7 @@ class BasicRegularCycleTest {
      * - 주기: 28일
      */
     @Test
-    fun testTC_01_04_singleDayPastQuery() = runTest {
+    fun testTC_01_04_singleDayQueryPast() = runTest {
         val repository = createRepository()
 
         val searchFrom = LocalDate(2025, 2, 10)
@@ -451,7 +451,7 @@ class BasicRegularCycleTest {
      * - 주기: 28일
      */
     @Test
-    fun testTC_01_05_oneWeekPastQuery() = runTest {
+    fun testTC_01_05_oneWeekQueryPast() = runTest {
         val repository = createRepository()
 
         val searchFrom = LocalDate(2025, 2, 8)
@@ -562,7 +562,7 @@ class BasicRegularCycleTest {
      * - 주기: 28일
      */
     @Test
-    fun testTC_01_06_oneMonthPastQuery() = runTest {
+    fun testTC_01_06_oneMonthQueryPast() = runTest {
         val repository = createRepository()
 
         val searchFrom = LocalDate(2025, 1, 29)
@@ -934,7 +934,7 @@ class BasicRegularCycleTest {
      * - 주기: 28일
      */
     @Test
-    fun testTC_01_09_predictedPeriodQuery() = runTest {
+    fun testTC_01_09_duringPredictedPeriod() = runTest {
         val repository = createRepository()
 
         val searchFrom = LocalDate(2025, 3, 26)
@@ -1008,7 +1008,7 @@ class BasicRegularCycleTest {
      * - 주기: 28일
      */
     @Test
-    fun testTC_01_10_ovulationPeriodQuery() = runTest {
+    fun testTC_01_10_duringOvulation() = runTest {
         val repository = createRepository()
 
         val searchFrom = LocalDate(2025, 3, 10)
@@ -1092,7 +1092,7 @@ class BasicRegularCycleTest {
      * - 주기: 28일
      */
     @Test
-    fun testTC_01_11_fertilePeriodQuery() = runTest {
+    fun testTC_01_11_duringFertile() = runTest {
         val repository = createRepository()
 
         val searchFrom = LocalDate(2025, 3, 5)
@@ -1168,7 +1168,7 @@ class BasicRegularCycleTest {
      * - 주기: 28일
      */
     @Test
-    fun testTC_01_12_delay1To7Days() = runTest {
+    fun testTC_01_12_delayOneToSevenDays() = runTest {
         val repository = createRepository()
 
         val searchFrom = LocalDate(2025, 3, 20)
@@ -1260,14 +1260,14 @@ class BasicRegularCycleTest {
      * 예상 결과:
      * - 실제 생리 기록: 2025-02-26 ~ 2025-03-02 (pk=3, 마지막 생리, 부분 포함)
      * - 생리 지연일: 8일
-     * - 지연 기간: 없음 (8일 이상이면 지연 기간 표시 안 함)
+     * - 지연 기간: 2025-03-26 ~ 2025-04-02 (예정일 03-26부터 오늘 04-02까지 8일간)
      * - 생리 예정일들: 없음 (8일 이상 지연 시 예정일 표시 안 함)
      * - 배란기들: 없음 (조회 범위 밖)
      * - 가임기들: 없음 (조회 범위 밖)
      * - 주기: 28일
      */
     @Test
-    fun testTC_01_13_delay8OrMoreDays() = runTest {
+    fun testTC_01_13_delayEightDaysOrMore() = runTest {
         val repository = createRepository()
 
         val searchFrom = LocalDate(2025, 3, 20)

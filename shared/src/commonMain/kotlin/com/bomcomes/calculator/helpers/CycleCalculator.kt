@@ -121,7 +121,11 @@ internal object CycleCalculator {
 
                 if (startDate < lastTheDayStart) {
                     results.add(DateRange(lastTheDayStart, endDate))
-                } else if (!(isPredict && startDate == lastTheDayStart)) {
+                } else if (!isPredict) {
+                    // 배란기/가임기는 항상 추가
+                    results.add(DateRange(startDate, endDate))
+                } else if (startDate > lastTheDayStart + rangeEnd) {
+                    // 예정일은 실제 생리 종료 다음날부터만 추가
                     results.add(DateRange(startDate, endDate))
                 }
             }

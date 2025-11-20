@@ -931,7 +931,7 @@ class ShortCycleTest {
      * - 주기: 25일
      */
     @Test
-    fun testTC_02_09_predictedPeriodQuery() = runTest {
+    fun testTC_02_09_duringPredictedPeriod() = runTest {
         val repository = createRepository()
 
         val searchFrom = LocalDate(2025, 3, 17)
@@ -1005,7 +1005,7 @@ class ShortCycleTest {
      * - 주기: 25일
      */
     @Test
-    fun testTC_02_10_ovulationPeriodQuery() = runTest {
+    fun testTC_02_10_duringOvulation() = runTest {
         val repository = createRepository()
 
         val searchFrom = LocalDate(2025, 3, 1)
@@ -1089,7 +1089,7 @@ class ShortCycleTest {
      * - 주기: 25일
      */
     @Test
-    fun testTC_02_11_fertilePeriodQuery() = runTest {
+    fun testTC_02_11_duringFertile() = runTest {
         val repository = createRepository()
 
         val searchFrom = LocalDate(2025, 2, 25)
