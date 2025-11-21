@@ -397,20 +397,43 @@ object PeriodCalculator {
             )
         }
 
+        // 피임약 사용 시 thePillPeriod를 먼저 계산 (iOS와 동일하게 동적 계산)
+        val thePillPeriod = if (isThePill && input.pillSettings.isCalculatingWithPill) {
+            PillCalculator.calculatePillBasedPredictDate(
+                startDate = periodRecord.startDate,
+                pillPackages = input.pillPackages,
+                pillSettings = input.pillSettings,
+                normalPeriod = period
+            )?.let { pillPredictDate ->
+                (pillPredictDate - periodRecord.startDate).toInt()
+            } ?: (input.pillSettings.pillCount + input.pillSettings.restPill)
+        } else {
+            null
+        }
+
+        // 피임약 사용 시 예정일 종료까지를 기준으로 delay 계산
+        // (thePillPeriod + days = predictStart까지 + 생리기간 = predictEnd까지)
+        val days = input.periodSettings.getAverageDays()
+        val effectivePeriod = if (thePillPeriod != null) {
+            thePillPeriod + days
+        } else {
+            period
+        }
+
         // 지연 일수 계산
         val delayDays = CycleCalculator.calculateDelayDays(
             lastTheDayStart = periodRecord.startDate,
             fromDate = fromDate,
             toDate = toDate,
             todayOnly = today,
-            period = period
+            period = effectivePeriod
         )
 
         // 지연 기간
         val delayPeriodRaw = CycleCalculator.calculateDelayPeriod(
             lastTheDayStart = periodRecord.startDate,
             fromDate = fromDate,
-            period = period,
+            period = effectivePeriod,
             delayTheDays = delayDays
         )
 
@@ -460,13 +483,6 @@ object PeriodCalculator {
                 delayDays = delayDays,
                 ovulationDays = ovulationDays
             )
-        }
-
-        // 피임약 관련 정보 계산
-        val thePillPeriod = if (isThePill && input.pillSettings.isCalculatingWithPill) {
-            input.pillSettings.pillCount + input.pillSettings.restPill
-        } else {
-            null
         }
 
         // 현재 남은 휴약일 계산
@@ -548,7 +564,11 @@ object PeriodCalculator {
 
             if (pillBasedDate != null) {
                 val predictEnd = pillBasedDate + days - 1
-                return listOf(DateRange(pillBasedDate, predictEnd))
+                // 쿼리 범위와 겹치는 경우에만 반환
+                if (predictEnd >= fromDate && pillBasedDate <= toDate) {
+                    return listOf(DateRange(pillBasedDate, predictEnd))
+                }
+                return emptyList()
             }
         }
 

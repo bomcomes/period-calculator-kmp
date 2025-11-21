@@ -51,7 +51,7 @@ internal object PillCalculator {
 
         return if (daysFromPillToPredict >= 5) {
             val lastPill = pillsAfterStart.last()
-            lastPill.packageStart + pillSettings.pillCount + 2
+            lastPill.packageStart + pillSettings.pillCount
         } else {
             null
         }
