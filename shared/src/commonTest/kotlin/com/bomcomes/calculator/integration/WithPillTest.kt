@@ -6,1348 +6,722 @@ import com.bomcomes.calculator.repository.InMemoryPeriodRepository
 import com.bomcomes.calculator.utils.DateUtils
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.LocalDate
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 /**
  * 피임약 복용 테스트
- * - 20~35개 복용, 0~7일 휴약 가능
- * - 다양한 팩 구성과 시나리오 테스트
  *
- * 테스트 문서: test-cases/docs/05-with-pill.md
+ * 문서 참조: test-cases/docs/05-with-pill.md
+ * 기준 날짜: 2025년 3월
+ *
+ * 공통 입력 조건:
+ * - 생리 기록: 2024-12-01 ~ 2025-02-27까지 4개
+ * - 피임약 시작일: 2025-03-01
+ * - 오늘 날짜: 2025-03-25
  */
 class WithPillTest {
+    private lateinit var repository: InMemoryPeriodRepository
 
-    /**
-     * TC-05-01: 현재 팩 - 복용 시작
-     * - 팩 구성: 21일 복용 / 7일 휴약
-     * - 첫 팩 복용 시작
-     */
-    @Test
-    fun testTC_05_01_currentPackageStart() = runTest {
-        val repository = InMemoryPeriodRepository().apply {
-            // 생리 기록: 12/1~12/5
-            addPeriod(
-                PeriodRecord(
-                    pk = "1",
-                    startDate = DateUtils.toJulianDay(LocalDate(2024, 12, 1)),
-                    endDate = DateUtils.toJulianDay(LocalDate(2024, 12, 5))
-                )
-            )
+    companion object {
+        // 공통 날짜 상수
+        val PERIOD_1_START = LocalDate(2024, 12, 1)
+        val PERIOD_1_END = LocalDate(2024, 12, 5)
+        val PERIOD_2_START = LocalDate(2024, 12, 29)
+        val PERIOD_2_END = LocalDate(2025, 1, 2)
+        val PERIOD_3_START = LocalDate(2025, 1, 26)
+        val PERIOD_3_END = LocalDate(2025, 1, 30)
+        val PERIOD_4_START = LocalDate(2025, 2, 23)
+        val PERIOD_4_END = LocalDate(2025, 2, 27)
 
-            // 피임약 패키지: 12/6 시작
-            addPillPackage(
-                PillPackage(
-                    packageStart = DateUtils.toJulianDay(LocalDate(2024, 12, 6)),
-                    pillCount = 21,
-                    restDays = 7
-                )
-            )
+        val PILL_START = LocalDate(2025, 3, 1)
+        val TODAY_DEFAULT = LocalDate(2025, 3, 25)
 
-            // 피임약 설정
-            setPillSettings(
-                PillSettings(
-                    isCalculatingWithPill = true,
-                    pillCount = 21,
-                    restPill = 7
-                )
-            )
-
-            // 생리 주기 설정
-            setPeriodSettings(
-                PeriodSettings(
-                    manualAverageCycle = 28,
-                    manualAverageDay = 5,
-                    isAutoCalc = false
-                )
-            )
-        }
-
-        val searchFrom = LocalDate(2024, 11, 1)
-        val searchTo = LocalDate(2025, 1, 31)
-        val today = LocalDate(2024, 12, 10)
-
-        val cycles = PeriodCalculator.calculateCycleInfo(
-            repository,
-            DateUtils.toJulianDay(searchFrom),
-            DateUtils.toJulianDay(searchTo),
-            DateUtils.toJulianDay(today)
-        )
-
-        // 주기 확인
-        assertTrue(cycles.isNotEmpty(), "주기 정보 존재")
-        val cycle = cycles.first()
-
-        // 피임약 주기 확인
-        assertNotNull(cycle.thePillPeriod, "피임약 주기 존재")
-        assertEquals(28, cycle.thePillPeriod ?: 0, "피임약 주기 28일 (21+7)")
-
-        // 휴약기 예정일 확인
-        assertTrue(cycle.predictDays.isNotEmpty(), "예정일 존재")
+        // 피임약 설정 기본값
+        const val DEFAULT_PILL_COUNT = 21
+        const val DEFAULT_REST_DAYS = 7
+        const val DEFAULT_CYCLE = 28
     }
 
     /**
-     * TC-05-02: 현재 팩 - 복용 중간
-     * - 팩 구성: 21일 복용 / 7일 휴약
-     * - 복용 10일째
+     * 공통 데이터 설정
+     */
+    private fun setupCommonData(repository: InMemoryPeriodRepository) {
+        // 생리 기록 4개 추가
+        repository.addPeriod(PeriodRecord(
+            pk = "1",
+            startDate = DateUtils.toJulianDay(PERIOD_1_START),
+            endDate = DateUtils.toJulianDay(PERIOD_1_END)
+        ))
+        repository.addPeriod(PeriodRecord(
+            pk = "2",
+            startDate = DateUtils.toJulianDay(PERIOD_2_START),
+            endDate = DateUtils.toJulianDay(PERIOD_2_END)
+        ))
+        repository.addPeriod(PeriodRecord(
+            pk = "3",
+            startDate = DateUtils.toJulianDay(PERIOD_3_START),
+            endDate = DateUtils.toJulianDay(PERIOD_3_END)
+        ))
+        repository.addPeriod(PeriodRecord(
+            pk = "4",
+            startDate = DateUtils.toJulianDay(PERIOD_4_START),
+            endDate = DateUtils.toJulianDay(PERIOD_4_END)
+        ))
+
+        // 생리 주기 설정
+        repository.setPeriodSettings(PeriodSettings(
+            manualAverageCycle = DEFAULT_CYCLE,
+            manualAverageDay = 5,
+            isAutoCalc = false
+        ))
+
+        // 피임약 설정 (기본)
+        repository.setPillSettings(PillSettings(
+            isCalculatingWithPill = true,
+            pillCount = DEFAULT_PILL_COUNT,
+            restPill = DEFAULT_REST_DAYS
+        ))
+
+        // 피임약 패키지 추가 (2025-03-01 시작)
+        repository.addPillPackage(PillPackage(
+            packageStart = DateUtils.toJulianDay(PILL_START),
+            pillCount = DEFAULT_PILL_COUNT,
+            restDays = DEFAULT_REST_DAYS
+        ))
+    }
+
+    // ==================== 그룹 1: 현재 패키지 조회 ====================
+
+    /**
+     * TC-05-01: 1일 조회
+     * 특정 날짜 1일만 조회할 때 피임약 복용 상태가 정확히 표시되는지 검증
      */
     @Test
-    fun testTC_05_02_currentPackageMiddle() = runTest {
-        val repository = InMemoryPeriodRepository().apply {
-            // 이전 생리: 11/29~12/3
-            addPeriod(
-                PeriodRecord(
-                    pk = "1",
-                    startDate = DateUtils.toJulianDay(LocalDate(2024, 11, 29)),
-                    endDate = DateUtils.toJulianDay(LocalDate(2024, 12, 3))
-                )
-            )
+    fun testTC_05_01_singleDayQuery() = runTest {
+        val repository = InMemoryPeriodRepository()
+        setupCommonData(repository)
 
-            // 피임약 패키지: 12/6 시작
-            addPillPackage(
-                PillPackage(
-                    packageStart = DateUtils.toJulianDay(LocalDate(2024, 12, 6)),
-                    pillCount = 21,
-                    restDays = 7
-                )
-            )
-
-            setPillSettings(
-                PillSettings(
-                    isCalculatingWithPill = true,
-                    pillCount = 21,
-                    restPill = 7
-                )
-            )
-
-            setPeriodSettings(
-                PeriodSettings(
-                    manualAverageCycle = 28,
-                    manualAverageDay = 5,
-                    isAutoCalc = false
-                )
-            )
-        }
-
-        val today = LocalDate(2024, 12, 15) // 복용 10일째
+        val fromDate = LocalDate(2025, 3, 15)
+        val toDate = LocalDate(2025, 3, 15)
+        val today = TODAY_DEFAULT
 
         val cycles = PeriodCalculator.calculateCycleInfo(
-            repository,
-            DateUtils.toJulianDay(LocalDate(2024, 11, 1)),
-            DateUtils.toJulianDay(LocalDate(2025, 1, 31)),
-            DateUtils.toJulianDay(today)
+            repository = repository,
+            fromDate = DateUtils.toJulianDay(fromDate),
+            toDate = DateUtils.toJulianDay(toDate),
+            today = DateUtils.toJulianDay(today)
         )
 
         assertTrue(cycles.isNotEmpty(), "주기 정보 존재")
         val cycle = cycles.first()
 
-        // 피임약 주기 확인
+        // 피임약 주기 검증
         assertNotNull(cycle.thePillPeriod, "피임약 주기 존재")
-        assertEquals(28, cycle.thePillPeriod ?: 0, "피임약 주기 28일")
+        assertEquals(DEFAULT_CYCLE, cycle.thePillPeriod, "피임약 주기 = 28일")
+
+        // 배란기/가임기 없음 검증
+        assertTrue(cycle.ovulationDays.isEmpty(), "피임약 복용 중 배란기 없음")
+        assertTrue(cycle.fertileDays.isEmpty(), "피임약 복용 중 가임기 없음")
+    }
+
+    /**
+     * TC-05-02: 1주일 조회
+     * 1주일 기간 조회 시 피임약 복용 상태 변화가 정확히 표시되는지 검증
+     */
+    @Test
+    fun testTC_05_02_weekQuery() = runTest {
+        val repository = InMemoryPeriodRepository()
+        setupCommonData(repository)
+
+        val fromDate = LocalDate(2025, 3, 19)
+        val toDate = LocalDate(2025, 3, 25)
+        val today = TODAY_DEFAULT
+
+        val cycles = PeriodCalculator.calculateCycleInfo(
+            repository = repository,
+            fromDate = DateUtils.toJulianDay(fromDate),
+            toDate = DateUtils.toJulianDay(toDate),
+            today = DateUtils.toJulianDay(today)
+        )
+
+        assertTrue(cycles.isNotEmpty(), "주기 정보 존재")
+        val cycle = cycles.first()
+
+        // 피임약 주기 검증
+        assertNotNull(cycle.thePillPeriod, "피임약 주기 존재")
+        assertEquals(DEFAULT_CYCLE, cycle.thePillPeriod, "피임약 주기 = 28일")
+
+        // 배란기/가임기 없음
+        assertTrue(cycle.ovulationDays.isEmpty(), "피임약 복용 중 배란기 없음")
+        assertTrue(cycle.fertileDays.isEmpty(), "피임약 복용 중 가임기 없음")
+    }
+
+    /**
+     * TC-05-03: 1개월 조회
+     * 피임약 패키지 전체 주기 조회 시 복용기간과 휴약기간이 모두 정확히 표시되는지 검증
+     */
+    @Test
+    fun testTC_05_03_monthQuery() = runTest {
+        val repository = InMemoryPeriodRepository()
+        setupCommonData(repository)
+
+        val fromDate = PILL_START
+        val toDate = LocalDate(2025, 3, 28)
+        val today = TODAY_DEFAULT
+
+        val cycles = PeriodCalculator.calculateCycleInfo(
+            repository = repository,
+            fromDate = DateUtils.toJulianDay(fromDate),
+            toDate = DateUtils.toJulianDay(toDate),
+            today = DateUtils.toJulianDay(today)
+        )
+
+        assertTrue(cycles.isNotEmpty(), "주기 정보 존재")
+        val cycle = cycles.first()
+
+        // 피임약 주기 검증
+        assertNotNull(cycle.thePillPeriod, "피임약 주기 존재")
+        assertEquals(DEFAULT_CYCLE, cycle.thePillPeriod, "피임약 주기 = 28일")
 
         // 남은 휴약일 확인
-        val restPill = cycle.restPill
-        assertNotNull(restPill, "남은 복용일 정보 존재")
+        assertNotNull(cycle.restPill, "남은 휴약일 정보 존재")
     }
 
+    // ==================== 그룹 2: 과거 패키지 조회 ====================
+
     /**
-     * TC-05-03: 현재 팩 - 휴약 기간
-     * - 팩 구성: 24일 복용 / 4일 휴약
-     * - 휴약 2일째
+     * TC-05-04: 이전 패키지 완료 시점
+     * 이전 패키지가 완료된 시점 조회 시 정확한 정보가 표시되는지 검증
      */
     @Test
-    fun testTC_05_03_currentPackagePlacebo() = runTest {
-        val repository = InMemoryPeriodRepository().apply {
-            addPeriod(
-                PeriodRecord(
-                    pk = "1",
-                    startDate = DateUtils.toJulianDay(LocalDate(2024, 11, 25)),
-                    endDate = DateUtils.toJulianDay(LocalDate(2024, 11, 29))
-                )
-            )
+    fun testTC_05_04_previousPackageComplete() = runTest {
+        val repository = InMemoryPeriodRepository()
+        setupCommonData(repository)
 
-            // 24일 복용 패키지
-            addPillPackage(
-                PillPackage(
-                    packageStart = DateUtils.toJulianDay(LocalDate(2024, 12, 1)),
-                    pillCount = 24,
-                    restDays = 4
-                )
-            )
+        // 이전 패키지 추가 (2월)
+        repository.addPillPackage(PillPackage(
+            packageStart = DateUtils.toJulianDay(LocalDate(2025, 2, 1)),
+            pillCount = DEFAULT_PILL_COUNT,
+            restDays = DEFAULT_REST_DAYS
+        ))
 
-            // 휴약기 생리
-            addPeriod(
-                PeriodRecord(
-                    pk = "2",
-                    startDate = DateUtils.toJulianDay(LocalDate(2024, 12, 25)),
-                    endDate = DateUtils.toJulianDay(LocalDate(2024, 12, 28))
-                )
-            )
-
-            setPillSettings(
-                PillSettings(
-                    isCalculatingWithPill = true,
-                    pillCount = 24,
-                    restPill = 4
-                )
-            )
-
-            setPeriodSettings(
-                PeriodSettings(
-                    manualAverageCycle = 28,
-                    manualAverageDay = 5,
-                    isAutoCalc = false
-                )
-            )
-        }
-
-        val today = LocalDate(2024, 12, 26) // 휴약 2일째
+        val fromDate = LocalDate(2025, 2, 28)
+        val toDate = LocalDate(2025, 2, 28)
+        val today = TODAY_DEFAULT
 
         val cycles = PeriodCalculator.calculateCycleInfo(
-            repository,
-            DateUtils.toJulianDay(LocalDate(2024, 11, 1)),
-            DateUtils.toJulianDay(LocalDate(2025, 1, 31)),
-            DateUtils.toJulianDay(today)
+            repository = repository,
+            fromDate = DateUtils.toJulianDay(fromDate),
+            toDate = DateUtils.toJulianDay(toDate),
+            today = DateUtils.toJulianDay(today)
         )
 
         assertTrue(cycles.isNotEmpty(), "주기 정보 존재")
         val cycle = cycles.first()
 
-        // 피임약 주기 확인
+        // 피임약 주기 검증
         assertNotNull(cycle.thePillPeriod, "피임약 주기 존재")
-        assertEquals(28, cycle.thePillPeriod ?: 0, "피임약 주기 28일 (24+4)")
+        assertEquals(DEFAULT_CYCLE, cycle.thePillPeriod, "피임약 주기 = 28일")
     }
 
     /**
-     * TC-05-04: 과거 팩 - 완료된 팩
-     * - 팩 구성: 21일 복용 / 7일 휴약
-     * - 2개월 전 완료된 팩
+     * TC-05-05: 피임약 시작 전
+     * 피임약 시작 전 날짜 조회 시 일반 생리 주기가 표시되는지 검증
      */
     @Test
-    fun testTC_05_04_pastPackageCompleted() = runTest {
-        val repository = InMemoryPeriodRepository().apply {
-            // 10월 생리
-            addPeriod(
-                PeriodRecord(
-                    pk = "1",
-                    startDate = DateUtils.toJulianDay(LocalDate(2024, 10, 1)),
-                    endDate = DateUtils.toJulianDay(LocalDate(2024, 10, 5))
-                )
-            )
+    fun testTC_05_05_beforePillStart() = runTest {
+        val repository = InMemoryPeriodRepository()
 
-            // 10월 피임약 패키지
-            addPillPackage(
-                PillPackage(
-                    packageStart = DateUtils.toJulianDay(LocalDate(2024, 10, 6)),
-                    pillCount = 21,
-                    restDays = 7
-                )
-            )
+        // 피임약 없이 일반 생리 기록만 설정
+        // 이전 생리 기록 추가
+        repository.addPeriod(PeriodRecord(
+            pk = "1",
+            startDate = DateUtils.toJulianDay(PERIOD_1_START),
+            endDate = DateUtils.toJulianDay(PERIOD_1_END)
+        ))
+        repository.addPeriod(PeriodRecord(
+            pk = "2",
+            startDate = DateUtils.toJulianDay(PERIOD_2_START),
+            endDate = DateUtils.toJulianDay(PERIOD_2_END)
+        ))
+        repository.addPeriod(PeriodRecord(
+            pk = "3",
+            startDate = DateUtils.toJulianDay(PERIOD_3_START),
+            endDate = DateUtils.toJulianDay(PERIOD_3_END)
+        ))
+        repository.addPeriod(PeriodRecord(
+            pk = "4",
+            startDate = DateUtils.toJulianDay(PERIOD_4_START),
+            endDate = DateUtils.toJulianDay(PERIOD_4_END)
+        ))
 
-            // 10월 휴약기 생리
-            addPeriod(
-                PeriodRecord(
-                    pk = "2",
-                    startDate = DateUtils.toJulianDay(LocalDate(2024, 10, 29)),
-                    endDate = DateUtils.toJulianDay(LocalDate(2024, 11, 2))
-                )
-            )
+        repository.setPeriodSettings(PeriodSettings(
+            manualAverageCycle = DEFAULT_CYCLE,
+            manualAverageDay = 5,
+            isAutoCalc = false
+        ))
 
-            setPillSettings(
-                PillSettings(
-                    isCalculatingWithPill = true,
-                    pillCount = 21,
-                    restPill = 7
-                )
-            )
+        // 피임약 설정하지 않음
+        repository.setPillSettings(PillSettings(
+            isCalculatingWithPill = false
+        ))
 
-            setPeriodSettings(
-                PeriodSettings(
-                    manualAverageCycle = 28,
-                    manualAverageDay = 5,
-                    isAutoCalc = false
-                )
-            )
-        }
-
-        val today = LocalDate(2024, 12, 15)
+        val fromDate = LocalDate(2025, 1, 10)
+        val toDate = LocalDate(2025, 2, 15)
+        val today = TODAY_DEFAULT
 
         val cycles = PeriodCalculator.calculateCycleInfo(
-            repository,
-            DateUtils.toJulianDay(LocalDate(2024, 9, 1)),
-            DateUtils.toJulianDay(LocalDate(2024, 12, 31)),
-            DateUtils.toJulianDay(today)
+            repository = repository,
+            fromDate = DateUtils.toJulianDay(fromDate),
+            toDate = DateUtils.toJulianDay(toDate),
+            today = DateUtils.toJulianDay(today)
         )
 
-        // 10월 피임약 주기 확인
         assertTrue(cycles.isNotEmpty(), "주기 정보 존재")
         val cycle = cycles.first()
+
+        // 피임약 주기 없음
+        assertNull(cycle.thePillPeriod, "피임약 시작 전이므로 피임약 주기 없음")
+    }
+
+    /**
+     * TC-05-06: 복약 지연 후 조회
+     * 피임약 복용을 며칠 지연한 후 이전 기간 조회 시 정보가 정확한지 검증
+     */
+    @Test
+    fun testTC_05_06_delayedStart() = runTest {
+        val repository = InMemoryPeriodRepository()
+
+        // 생리 기록만 설정 (피임약 지연 시작을 위해)
+        repository.addPeriod(PeriodRecord(
+            pk = "4",
+            startDate = DateUtils.toJulianDay(PERIOD_4_START),
+            endDate = DateUtils.toJulianDay(PERIOD_4_END)
+        ))
+
+        repository.setPeriodSettings(PeriodSettings(
+            manualAverageCycle = DEFAULT_CYCLE,
+            manualAverageDay = 5,
+            isAutoCalc = false
+        ))
+
+        repository.setPillSettings(PillSettings(
+            isCalculatingWithPill = true,
+            pillCount = DEFAULT_PILL_COUNT,
+            restPill = DEFAULT_REST_DAYS
+        ))
+
+        // 피임약 시작을 3일 지연 (03-04부터 시작)
+        repository.addPillPackage(PillPackage(
+            packageStart = DateUtils.toJulianDay(LocalDate(2025, 3, 4)),
+            pillCount = DEFAULT_PILL_COUNT,
+            restDays = DEFAULT_REST_DAYS
+        ))
+
+        val fromDate = LocalDate(2025, 3, 1)
+        val toDate = LocalDate(2025, 3, 3)
+        val today = TODAY_DEFAULT
+
+        val cycles = PeriodCalculator.calculateCycleInfo(
+            repository = repository,
+            fromDate = DateUtils.toJulianDay(fromDate),
+            toDate = DateUtils.toJulianDay(toDate),
+            today = DateUtils.toJulianDay(today)
+        )
+
+        assertTrue(cycles.isNotEmpty(), "주기 정보 존재")
+        val cycle = cycles.first()
+
+        // 3월 1-3일은 피임약 시작 전
+        assertNotNull(cycle.thePillPeriod, "피임약 설정은 있지만 해당 기간은 복용 전")
+    }
+
+    // ==================== 그룹 3: 경계값 테스트 ====================
+
+    /**
+     * TC-05-07: 최소 복용일 (20일)
+     * 최소 복용일 설정 시 주기가 올바르게 계산되는지 검증
+     */
+    @Test
+    fun testTC_05_07_minPillDays() = runTest {
+        val repository = InMemoryPeriodRepository()
+
+        // 생리 기록
+        repository.addPeriod(PeriodRecord(
+            pk = "4",
+            startDate = DateUtils.toJulianDay(PERIOD_4_START),
+            endDate = DateUtils.toJulianDay(PERIOD_4_END)
+        ))
+
+        repository.setPeriodSettings(PeriodSettings(
+            manualAverageCycle = 27,
+            manualAverageDay = 5,
+            isAutoCalc = false
+        ))
+
+        repository.setPillSettings(PillSettings(
+            isCalculatingWithPill = true,
+            pillCount = 20,
+            restPill = 7
+        ))
+
+        repository.addPillPackage(PillPackage(
+            packageStart = DateUtils.toJulianDay(PILL_START),
+            pillCount = 20,
+            restDays = 7
+        ))
+
+        val cycles = PeriodCalculator.calculateCycleInfo(
+            repository = repository,
+            fromDate = DateUtils.toJulianDay(PILL_START),
+            toDate = DateUtils.toJulianDay(LocalDate(2025, 3, 27)),
+            today = DateUtils.toJulianDay(TODAY_DEFAULT)
+        )
+
+        assertTrue(cycles.isNotEmpty(), "주기 정보 존재")
+        val cycle = cycles.first()
+
         assertNotNull(cycle.thePillPeriod, "피임약 주기 존재")
+        assertEquals(27, cycle.thePillPeriod, "피임약 주기 = 20 + 7 = 27일")
     }
 
     /**
-     * TC-05-05: 과거 팩 - 중단된 팩
-     * - 팩 구성: 21일 복용 / 7일 휴약
-     * - 복용 중간에 중단
+     * TC-05-08: 최대 복용일 (35일)
+     * 최대 복용일 설정 시 주기가 올바르게 계산되는지 검증
      */
     @Test
-    fun testTC_05_05_pastPackageInterrupted() = runTest {
-        val repository = InMemoryPeriodRepository().apply {
-            addPeriod(
-                PeriodRecord(
-                    pk = "1",
-                    startDate = DateUtils.toJulianDay(LocalDate(2024, 11, 1)),
-                    endDate = DateUtils.toJulianDay(LocalDate(2024, 11, 5))
-                )
-            )
+    fun testTC_05_08_maxPillDays() = runTest {
+        val repository = InMemoryPeriodRepository()
 
-            // 15일만 복용 (11/6~11/20)
-            addPillPackage(
-                PillPackage(
-                    packageStart = DateUtils.toJulianDay(LocalDate(2024, 11, 6)),
-                    pillCount = 15, // 중간 중단
-                    restDays = 0
-                )
-            )
+        // 생리 기록
+        repository.addPeriod(PeriodRecord(
+            pk = "4",
+            startDate = DateUtils.toJulianDay(PERIOD_4_START),
+            endDate = DateUtils.toJulianDay(PERIOD_4_END)
+        ))
 
-            // 조기 생리
-            addPeriod(
-                PeriodRecord(
-                    pk = "2",
-                    startDate = DateUtils.toJulianDay(LocalDate(2024, 11, 25)),
-                    endDate = DateUtils.toJulianDay(LocalDate(2024, 11, 29))
-                )
-            )
+        repository.setPeriodSettings(PeriodSettings(
+            manualAverageCycle = 42,
+            manualAverageDay = 5,
+            isAutoCalc = false
+        ))
 
-            setPillSettings(
-                PillSettings(
-                    isCalculatingWithPill = true,
-                    pillCount = 21,
-                    restPill = 7
-                )
-            )
+        repository.setPillSettings(PillSettings(
+            isCalculatingWithPill = true,
+            pillCount = 35,
+            restPill = 7
+        ))
 
-            setPeriodSettings(
-                PeriodSettings(
-                    manualAverageCycle = 28,
-                    manualAverageDay = 5,
-                    isAutoCalc = false
-                )
-            )
-        }
-
-        val today = LocalDate(2024, 12, 15)
+        repository.addPillPackage(PillPackage(
+            packageStart = DateUtils.toJulianDay(PILL_START),
+            pillCount = 35,
+            restDays = 7
+        ))
 
         val cycles = PeriodCalculator.calculateCycleInfo(
-            repository,
-            DateUtils.toJulianDay(LocalDate(2024, 10, 1)),
-            DateUtils.toJulianDay(LocalDate(2024, 12, 31)),
-            DateUtils.toJulianDay(today)
-        )
-
-        // 실제 생리 기록 확인 (조기 생리)
-        assertTrue(cycles.isNotEmpty(), "주기 정보 존재")
-        val cycle = cycles.first()
-        assertTrue(cycle.actualPeriod != null || cycle.predictDays.isNotEmpty(), "생리 기록 존재")
-    }
-
-    /**
-     * TC-05-06: 과거 팩 - 지연 복용
-     * - 팩 구성: 21일 복용 / 2일 휴약
-     * - 다음 팩 시작 지연
-     */
-    @Test
-    fun testTC_05_06_pastPackageDelayed() = runTest {
-        val repository = InMemoryPeriodRepository().apply {
-            addPeriod(
-                PeriodRecord(
-                    pk = "1",
-                    startDate = DateUtils.toJulianDay(LocalDate(2024, 10, 1)),
-                    endDate = DateUtils.toJulianDay(LocalDate(2024, 10, 5))
-                )
-            )
-
-            // 첫 팩
-            addPillPackage(
-                PillPackage(
-                    packageStart = DateUtils.toJulianDay(LocalDate(2024, 10, 6)),
-                    pillCount = 21,
-                    restDays = 2
-                )
-            )
-
-            // 휴약기 생리
-            addPeriod(
-                PeriodRecord(
-                    pk = "2",
-                    startDate = DateUtils.toJulianDay(LocalDate(2024, 10, 27)),
-                    endDate = DateUtils.toJulianDay(LocalDate(2024, 10, 30))
-                )
-            )
-
-            // 다음 팩 (5일 지연)
-            addPillPackage(
-                PillPackage(
-                    packageStart = DateUtils.toJulianDay(LocalDate(2024, 11, 3)), // 10/29 예정 → 11/3 시작
-                    pillCount = 21,
-                    restDays = 2
-                )
-            )
-
-            setPillSettings(
-                PillSettings(
-                    isCalculatingWithPill = true,
-                    pillCount = 21,
-                    restPill = 2
-                )
-            )
-
-            setPeriodSettings(
-                PeriodSettings(
-                    manualAverageCycle = 28,
-                    manualAverageDay = 5,
-                    isAutoCalc = false
-                )
-            )
-        }
-
-        val today = LocalDate(2024, 12, 1)
-
-        val cycles = PeriodCalculator.calculateCycleInfo(
-            repository,
-            DateUtils.toJulianDay(LocalDate(2024, 9, 1)),
-            DateUtils.toJulianDay(LocalDate(2024, 12, 31)),
-            DateUtils.toJulianDay(today)
+            repository = repository,
+            fromDate = DateUtils.toJulianDay(PILL_START),
+            toDate = DateUtils.toJulianDay(LocalDate(2025, 4, 11)),
+            today = DateUtils.toJulianDay(TODAY_DEFAULT)
         )
 
         assertTrue(cycles.isNotEmpty(), "주기 정보 존재")
         val cycle = cycles.first()
 
-        // 피임약 주기 확인
         assertNotNull(cycle.thePillPeriod, "피임약 주기 존재")
+        assertEquals(42, cycle.thePillPeriod, "피임약 주기 = 35 + 7 = 42일")
     }
 
     /**
-     * TC-05-07: 장기 복용 - 연속 6개월
-     * - 팩 구성: 28일 복용 / 0일 휴약 (연속 복용)
-     * - 6개월 연속 복용
+     * TC-05-09: 휴약 없음 (연속 복용)
+     * 휴약일 0으로 설정 시 연속 복용이 올바르게 처리되는지 검증
      */
     @Test
-    fun testTC_05_07_longTermContinuous() = runTest {
-        val repository = InMemoryPeriodRepository().apply {
-            addPeriod(
-                PeriodRecord(
-                    pk = "1",
-                    startDate = DateUtils.toJulianDay(LocalDate(2024, 6, 1)),
-                    endDate = DateUtils.toJulianDay(LocalDate(2024, 6, 5))
-                )
-            )
+    fun testTC_05_09_noPlacebo() = runTest {
+        val repository = InMemoryPeriodRepository()
 
-            // 6개월 연속 복용 패키지들
-            for (month in 6..11) {
-                val startDay = if (month == 6) 6 else 1
-                addPillPackage(
-                    PillPackage(
-                        packageStart = DateUtils.toJulianDay(LocalDate(2024, month, startDay)),
-                        pillCount = 28,
-                        restDays = 0
-                    )
-                )
-            }
+        // 생리 기록
+        repository.addPeriod(PeriodRecord(
+            pk = "4",
+            startDate = DateUtils.toJulianDay(PERIOD_4_START),
+            endDate = DateUtils.toJulianDay(PERIOD_4_END)
+        ))
 
-            setPillSettings(
-                PillSettings(
-                    isCalculatingWithPill = true,
-                    pillCount = 28,
-                    restPill = 0
-                )
-            )
+        repository.setPeriodSettings(PeriodSettings(
+            manualAverageCycle = 21,
+            manualAverageDay = 5,
+            isAutoCalc = false
+        ))
 
-            setPeriodSettings(
-                PeriodSettings(
-                    manualAverageCycle = 28,
-                    manualAverageDay = 5,
-                    isAutoCalc = false
-                )
-            )
-        }
+        repository.setPillSettings(PillSettings(
+            isCalculatingWithPill = true,
+            pillCount = 21,
+            restPill = 0
+        ))
 
-        val today = LocalDate(2024, 12, 1)
+        repository.addPillPackage(PillPackage(
+            packageStart = DateUtils.toJulianDay(PILL_START),
+            pillCount = 21,
+            restDays = 0
+        ))
 
         val cycles = PeriodCalculator.calculateCycleInfo(
-            repository,
-            DateUtils.toJulianDay(LocalDate(2024, 5, 1)),
-            DateUtils.toJulianDay(LocalDate(2024, 12, 31)),
-            DateUtils.toJulianDay(today)
+            repository = repository,
+            fromDate = DateUtils.toJulianDay(PILL_START),
+            toDate = DateUtils.toJulianDay(LocalDate(2025, 3, 21)),
+            today = DateUtils.toJulianDay(TODAY_DEFAULT)
         )
 
-        // 연속 복용 확인 (휴약 없음)
         assertTrue(cycles.isNotEmpty(), "주기 정보 존재")
         val cycle = cycles.first()
+
         assertNotNull(cycle.thePillPeriod, "피임약 주기 존재")
-        assertEquals(28, cycle.thePillPeriod ?: 0, "피임약 주기 28일 (연속 복용)")
+        assertEquals(21, cycle.thePillPeriod, "피임약 주기 = 21 + 0 = 21일")
+
+        // 휴약일이 0이므로 restPill은 0
+        assertEquals(0, cycle.restPill ?: 0, "휴약일 0")
     }
 
     /**
-     * TC-05-08: 장기 복용 - 1년 이상
-     * - 팩 구성: 21일 복용 / 7일 휴약
-     * - 13개월 복용
+     * TC-05-10: 24일 복용 + 4일 휴약
+     * 24/4 구성 피임약 테스트
      */
     @Test
-    fun testTC_05_08_longTermOneYear() = runTest {
-        val repository = InMemoryPeriodRepository().apply {
-            addPeriod(
-                PeriodRecord(
-                    pk = "1",
-                    startDate = DateUtils.toJulianDay(LocalDate(2023, 11, 1)),
-                    endDate = DateUtils.toJulianDay(LocalDate(2023, 11, 5))
-                )
-            )
+    fun testTC_05_10_config24_4() = runTest {
+        val repository = InMemoryPeriodRepository()
 
-            // 13개월 복용 기록 (간소화)
-            addPillPackage(
-                PillPackage(
-                    packageStart = DateUtils.toJulianDay(LocalDate(2023, 11, 6)),
-                    pillCount = 21,
-                    restDays = 7
-                )
-            )
+        // 생리 기록
+        repository.addPeriod(PeriodRecord(
+            pk = "4",
+            startDate = DateUtils.toJulianDay(PERIOD_4_START),
+            endDate = DateUtils.toJulianDay(PERIOD_4_END)
+        ))
 
-            setPillSettings(
-                PillSettings(
-                    isCalculatingWithPill = true,
-                    pillCount = 21,
-                    restPill = 7
-                )
-            )
+        repository.setPeriodSettings(PeriodSettings(
+            manualAverageCycle = DEFAULT_CYCLE,
+            manualAverageDay = 5,
+            isAutoCalc = false
+        ))
 
-            setPeriodSettings(
-                PeriodSettings(
-                    manualAverageCycle = 28,
-                    manualAverageDay = 5,
-                    isAutoCalc = false
-                )
-            )
-        }
+        repository.setPillSettings(PillSettings(
+            isCalculatingWithPill = true,
+            pillCount = 24,
+            restPill = 4
+        ))
 
-        val today = LocalDate(2024, 12, 15)
+        repository.addPillPackage(PillPackage(
+            packageStart = DateUtils.toJulianDay(PILL_START),
+            pillCount = 24,
+            restDays = 4
+        ))
 
         val cycles = PeriodCalculator.calculateCycleInfo(
-            repository,
-            DateUtils.toJulianDay(LocalDate(2023, 10, 1)),
-            DateUtils.toJulianDay(LocalDate(2025, 1, 31)),
-            DateUtils.toJulianDay(today)
+            repository = repository,
+            fromDate = DateUtils.toJulianDay(PILL_START),
+            toDate = DateUtils.toJulianDay(LocalDate(2025, 3, 28)),
+            today = DateUtils.toJulianDay(TODAY_DEFAULT)
         )
 
         assertTrue(cycles.isNotEmpty(), "주기 정보 존재")
         val cycle = cycles.first()
 
-        // 피임약 주기 확인
         assertNotNull(cycle.thePillPeriod, "피임약 주기 존재")
-        assertEquals(28, cycle.thePillPeriod ?: 0, "피임약 주기 28일")
+        assertEquals(28, cycle.thePillPeriod, "피임약 주기 = 24 + 4 = 28일")
     }
 
+    // ==================== 그룹 4: 특수 상황 ====================
+
     /**
-     * TC-05-09: 경계 케이스 - 최소 복용일 (20일)
-     * - 팩 구성: 20일 복용 / 7일 휴약
-     * - 최소 복용일 테스트
+     * TC-05-11: 복약 1일 지연 시작
+     * 피임약 시작을 1일 지연했을 때 계산이 올바른지 검증
      */
     @Test
-    fun testTC_05_09_boundaryMinPills() = runTest {
-        val repository = InMemoryPeriodRepository().apply {
-            addPeriod(
-                PeriodRecord(
-                    pk = "1",
-                    startDate = DateUtils.toJulianDay(LocalDate(2024, 12, 1)),
-                    endDate = DateUtils.toJulianDay(LocalDate(2024, 12, 5))
-                )
-            )
+    fun testTC_05_11_oneDayDelay() = runTest {
+        val repository = InMemoryPeriodRepository()
 
-            // 20일 복용 패키지
-            addPillPackage(
-                PillPackage(
-                    packageStart = DateUtils.toJulianDay(LocalDate(2024, 12, 6)),
-                    pillCount = 20,
-                    restDays = 7
-                )
-            )
+        // 생리 기록
+        repository.addPeriod(PeriodRecord(
+            pk = "4",
+            startDate = DateUtils.toJulianDay(PERIOD_4_START),
+            endDate = DateUtils.toJulianDay(PERIOD_4_END)
+        ))
 
-            setPillSettings(
-                PillSettings(
-                    isCalculatingWithPill = true,
-                    pillCount = 20,
-                    restPill = 7
-                )
-            )
+        repository.setPeriodSettings(PeriodSettings(
+            manualAverageCycle = DEFAULT_CYCLE,
+            manualAverageDay = 5,
+            isAutoCalc = false
+        ))
 
-            setPeriodSettings(
-                PeriodSettings(
-                    manualAverageCycle = 28,
-                    manualAverageDay = 5,
-                    isAutoCalc = false
-                )
-            )
-        }
+        repository.setPillSettings(PillSettings(
+            isCalculatingWithPill = true,
+            pillCount = DEFAULT_PILL_COUNT,
+            restPill = DEFAULT_REST_DAYS
+        ))
 
-        val today = LocalDate(2024, 12, 20)
+        // 3월 2일부터 시작 (1일 지연)
+        repository.addPillPackage(PillPackage(
+            packageStart = DateUtils.toJulianDay(LocalDate(2025, 3, 2)),
+            pillCount = DEFAULT_PILL_COUNT,
+            restDays = DEFAULT_REST_DAYS
+        ))
 
         val cycles = PeriodCalculator.calculateCycleInfo(
-            repository,
-            DateUtils.toJulianDay(LocalDate(2024, 11, 1)),
-            DateUtils.toJulianDay(LocalDate(2025, 1, 31)),
-            DateUtils.toJulianDay(today)
+            repository = repository,
+            fromDate = DateUtils.toJulianDay(LocalDate(2025, 3, 2)),
+            toDate = DateUtils.toJulianDay(LocalDate(2025, 3, 29)),
+            today = DateUtils.toJulianDay(TODAY_DEFAULT)
         )
 
         assertTrue(cycles.isNotEmpty(), "주기 정보 존재")
         val cycle = cycles.first()
 
-        // 피임약 주기 확인
         assertNotNull(cycle.thePillPeriod, "피임약 주기 존재")
-        assertEquals(27, cycle.thePillPeriod ?: 0, "피임약 주기 27일 (20+7)")
+        assertEquals(DEFAULT_CYCLE, cycle.thePillPeriod, "피임약 주기 = 28일")
     }
 
     /**
-     * TC-05-10: 경계 케이스 - 최대 복용일 (35일)
-     * - 팩 구성: 35일 복용 / 7일 휴약
-     * - 최대 복용일 테스트
+     * TC-05-12: 복약 7일 지연 시작
+     * 피임약 시작을 7일 지연했을 때 계산이 올바른지 검증
      */
     @Test
-    fun testTC_05_10_boundaryMaxPills() = runTest {
-        val repository = InMemoryPeriodRepository().apply {
-            addPeriod(
-                PeriodRecord(
-                    pk = "1",
-                    startDate = DateUtils.toJulianDay(LocalDate(2024, 11, 25)),
-                    endDate = DateUtils.toJulianDay(LocalDate(2024, 11, 29))
-                )
-            )
+    fun testTC_05_12_sevenDayDelay() = runTest {
+        val repository = InMemoryPeriodRepository()
 
-            // 35일 복용 패키지
-            addPillPackage(
-                PillPackage(
-                    packageStart = DateUtils.toJulianDay(LocalDate(2024, 12, 1)),
-                    pillCount = 35,
-                    restDays = 7
-                )
-            )
+        // 생리 기록
+        repository.addPeriod(PeriodRecord(
+            pk = "4",
+            startDate = DateUtils.toJulianDay(PERIOD_4_START),
+            endDate = DateUtils.toJulianDay(PERIOD_4_END)
+        ))
 
-            setPillSettings(
-                PillSettings(
-                    isCalculatingWithPill = true,
-                    pillCount = 35,
-                    restPill = 7
-                )
-            )
+        repository.setPeriodSettings(PeriodSettings(
+            manualAverageCycle = DEFAULT_CYCLE,
+            manualAverageDay = 5,
+            isAutoCalc = false
+        ))
 
-            setPeriodSettings(
-                PeriodSettings(
-                    manualAverageCycle = 28,
-                    manualAverageDay = 5,
-                    isAutoCalc = false
-                )
-            )
-        }
+        repository.setPillSettings(PillSettings(
+            isCalculatingWithPill = true,
+            pillCount = DEFAULT_PILL_COUNT,
+            restPill = DEFAULT_REST_DAYS
+        ))
 
-        val today = LocalDate(2024, 12, 25)
+        // 3월 8일부터 시작 (7일 지연)
+        repository.addPillPackage(PillPackage(
+            packageStart = DateUtils.toJulianDay(LocalDate(2025, 3, 8)),
+            pillCount = DEFAULT_PILL_COUNT,
+            restDays = DEFAULT_REST_DAYS
+        ))
 
         val cycles = PeriodCalculator.calculateCycleInfo(
-            repository,
-            DateUtils.toJulianDay(LocalDate(2024, 11, 1)),
-            DateUtils.toJulianDay(LocalDate(2025, 2, 28)),
-            DateUtils.toJulianDay(today)
+            repository = repository,
+            fromDate = DateUtils.toJulianDay(LocalDate(2025, 3, 8)),
+            toDate = DateUtils.toJulianDay(LocalDate(2025, 4, 4)),
+            today = DateUtils.toJulianDay(TODAY_DEFAULT)
         )
 
         assertTrue(cycles.isNotEmpty(), "주기 정보 존재")
         val cycle = cycles.first()
 
-        // 피임약 주기 확인
         assertNotNull(cycle.thePillPeriod, "피임약 주기 존재")
-        assertEquals(42, cycle.thePillPeriod ?: 0, "피임약 주기 42일 (35+7)")
+        assertEquals(DEFAULT_CYCLE, cycle.thePillPeriod, "피임약 주기 = 28일")
     }
 
     /**
-     * TC-05-11: 경계 케이스 - 휴약 없음 (0일)
-     * - 팩 구성: 28일 복용 / 0일 휴약
-     * - 연속 복용 테스트
+     * TC-05-13: 장기 연속 복용
+     * 여러 패키지를 연속으로 복용할 때 계산이 올바른지 검증
      */
     @Test
-    fun testTC_05_11_boundaryNoPlacebo() = runTest {
-        val repository = InMemoryPeriodRepository().apply {
-            addPeriod(
-                PeriodRecord(
-                    pk = "1",
-                    startDate = DateUtils.toJulianDay(LocalDate(2024, 11, 28)),
-                    endDate = DateUtils.toJulianDay(LocalDate(2024, 12, 2))
-                )
-            )
+    fun testTC_05_13_continuousPackages() = runTest {
+        val repository = InMemoryPeriodRepository()
+        setupCommonData(repository)
 
-            // 첫 팩
-            addPillPackage(
-                PillPackage(
-                    packageStart = DateUtils.toJulianDay(LocalDate(2024, 12, 3)),
-                    pillCount = 28,
-                    restDays = 0
-                )
-            )
-
-            // 둘째 팩 (연속)
-            addPillPackage(
-                PillPackage(
-                    packageStart = DateUtils.toJulianDay(LocalDate(2024, 12, 31)),
-                    pillCount = 28,
-                    restDays = 0
-                )
-            )
-
-            setPillSettings(
-                PillSettings(
-                    isCalculatingWithPill = true,
-                    pillCount = 28,
-                    restPill = 0
-                )
-            )
-
-            setPeriodSettings(
-                PeriodSettings(
-                    manualAverageCycle = 28,
-                    manualAverageDay = 5,
-                    isAutoCalc = false
-                )
-            )
-        }
-
-        val today = LocalDate(2025, 1, 15)
+        // 3개월 연속 패키지 추가
+        repository.addPillPackage(PillPackage(
+            packageStart = DateUtils.toJulianDay(LocalDate(2025, 3, 29)),
+            pillCount = DEFAULT_PILL_COUNT,
+            restDays = DEFAULT_REST_DAYS
+        ))
+        repository.addPillPackage(PillPackage(
+            packageStart = DateUtils.toJulianDay(LocalDate(2025, 4, 26)),
+            pillCount = DEFAULT_PILL_COUNT,
+            restDays = DEFAULT_REST_DAYS
+        ))
 
         val cycles = PeriodCalculator.calculateCycleInfo(
-            repository,
-            DateUtils.toJulianDay(LocalDate(2024, 11, 1)),
-            DateUtils.toJulianDay(LocalDate(2025, 2, 28)),
-            DateUtils.toJulianDay(today)
+            repository = repository,
+            fromDate = DateUtils.toJulianDay(PILL_START),
+            toDate = DateUtils.toJulianDay(LocalDate(2025, 5, 23)),
+            today = DateUtils.toJulianDay(LocalDate(2025, 4, 15))
         )
 
-        // 연속 복용 확인
         assertTrue(cycles.isNotEmpty(), "주기 정보 존재")
-        val cycle = cycles.first()
-        assertNotNull(cycle.thePillPeriod, "피임약 주기 존재")
-        assertEquals(28, cycle.thePillPeriod ?: 0, "피임약 주기 28일 (연속)")
+
+        // 각 패키지마다 주기 정보가 있어야 함
+        for (cycle in cycles) {
+            assertNotNull(cycle.thePillPeriod, "각 패키지의 피임약 주기 존재")
+            assertEquals(DEFAULT_CYCLE, cycle.thePillPeriod, "각 패키지 주기 = 28일")
+        }
     }
 
     /**
-     * TC-05-12: 생리 유형 - 휴약기 정상 생리
-     * - 팩 구성: 21일 복용 / 7일 휴약
-     * - 휴약 3일째 시작, 5일간
+     * TC-05-14: 복용 중단 후 재개
+     * 피임약 복용을 중단했다가 재개했을 때 계산이 올바른지 검증
      */
     @Test
-    fun testTC_05_12_periodTypeNormalPlacebo() = runTest {
-        val repository = InMemoryPeriodRepository().apply {
-            addPeriod(
-                PeriodRecord(
-                    pk = "1",
-                    startDate = DateUtils.toJulianDay(LocalDate(2024, 12, 1)),
-                    endDate = DateUtils.toJulianDay(LocalDate(2024, 12, 5))
-                )
-            )
+    fun testTC_05_14_discontinuedAndResumed() = runTest {
+        val repository = InMemoryPeriodRepository()
+        setupCommonData(repository)
 
-            // 21일 복용 패키지
-            addPillPackage(
-                PillPackage(
-                    packageStart = DateUtils.toJulianDay(LocalDate(2024, 12, 6)),
-                    pillCount = 21,
-                    restDays = 7
-                )
-            )
-
-            // 휴약기 생리
-            addPeriod(
-                PeriodRecord(
-                    pk = "2",
-                    startDate = DateUtils.toJulianDay(LocalDate(2024, 12, 29)),
-                    endDate = DateUtils.toJulianDay(LocalDate(2025, 1, 2))
-                )
-            )
-
-            setPillSettings(
-                PillSettings(
-                    isCalculatingWithPill = true,
-                    pillCount = 21,
-                    restPill = 7
-                )
-            )
-
-            setPeriodSettings(
-                PeriodSettings(
-                    manualAverageCycle = 28,
-                    manualAverageDay = 5,
-                    isAutoCalc = false
-                )
-            )
-        }
-
-        val today = LocalDate(2025, 1, 10)
+        // 1월 패키지
+        repository.addPillPackage(PillPackage(
+            packageStart = DateUtils.toJulianDay(LocalDate(2025, 1, 1)),
+            pillCount = DEFAULT_PILL_COUNT,
+            restDays = DEFAULT_REST_DAYS
+        ))
+        // 2월은 건너뜀
+        // 3월 패키지는 이미 setupCommonData에서 추가됨
 
         val cycles = PeriodCalculator.calculateCycleInfo(
-            repository,
-            DateUtils.toJulianDay(LocalDate(2024, 11, 1)),
-            DateUtils.toJulianDay(LocalDate(2025, 2, 28)),
-            DateUtils.toJulianDay(today)
+            repository = repository,
+            fromDate = DateUtils.toJulianDay(LocalDate(2025, 2, 1)),
+            toDate = DateUtils.toJulianDay(LocalDate(2025, 3, 31)),
+            today = DateUtils.toJulianDay(TODAY_DEFAULT)
         )
 
-        // 휴약기 생리 확인
         assertTrue(cycles.isNotEmpty(), "주기 정보 존재")
-        val cycle = cycles.first()
-        assertNotNull(cycle.actualPeriod, "휴약기 생리 존재")
+
+        // 마지막 주기 확인 (3월)
+        val lastCycle = cycles.last()
+        assertNotNull(lastCycle.thePillPeriod, "3월 피임약 주기 존재")
+        assertEquals(DEFAULT_CYCLE, lastCycle.thePillPeriod, "3월 피임약 주기 = 28일")
     }
 
     /**
-     * TC-05-13: 생리 유형 - 돌발 출혈 (복용 중)
-     * - 팩 구성: 21일 복용 / 7일 휴약
-     * - 복용 중 돌발 출혈
+     * TC-05-15: 일반 주기에서 피임약 전환
+     * 일반 생리 주기에서 피임약으로 전환할 때 올바르게 처리되는지 검증
      */
     @Test
-    fun testTC_05_13_periodTypeBreakthrough() = runTest {
-        val repository = InMemoryPeriodRepository().apply {
-            addPeriod(
-                PeriodRecord(
-                    pk = "1",
-                    startDate = DateUtils.toJulianDay(LocalDate(2024, 12, 1)),
-                    endDate = DateUtils.toJulianDay(LocalDate(2024, 12, 5))
-                )
-            )
+    fun testTC_05_15_transitionToPill() = runTest {
+        val repository = InMemoryPeriodRepository()
+        setupCommonData(repository)
 
-            // 21일 복용 패키지
-            addPillPackage(
-                PillPackage(
-                    packageStart = DateUtils.toJulianDay(LocalDate(2024, 12, 6)),
-                    pillCount = 21,
-                    restDays = 7
-                )
-            )
-
-            // 돌발 출혈 (복용 중)
-            addPeriod(
-                PeriodRecord(
-                    pk = "2",
-                    startDate = DateUtils.toJulianDay(LocalDate(2024, 12, 15)),
-                    endDate = DateUtils.toJulianDay(LocalDate(2024, 12, 17))
-                )
-            )
-
-            setPillSettings(
-                PillSettings(
-                    isCalculatingWithPill = true,
-                    pillCount = 21,
-                    restPill = 7
-                )
-            )
-
-            setPeriodSettings(
-                PeriodSettings(
-                    manualAverageCycle = 28,
-                    manualAverageDay = 5,
-                    isAutoCalc = false
-                )
-            )
-        }
-
-        val today = LocalDate(2024, 12, 20)
-
-        val cycles = PeriodCalculator.calculateCycleInfo(
-            repository,
-            DateUtils.toJulianDay(LocalDate(2024, 11, 1)),
-            DateUtils.toJulianDay(LocalDate(2025, 1, 31)),
-            DateUtils.toJulianDay(today)
+        // 3월부터는 피임약
+        val marchCycles = PeriodCalculator.calculateCycleInfo(
+            repository = repository,
+            fromDate = DateUtils.toJulianDay(PILL_START),
+            toDate = DateUtils.toJulianDay(LocalDate(2025, 3, 31)),
+            today = DateUtils.toJulianDay(TODAY_DEFAULT)
         )
 
-        // 돌발 출혈 확인
-        assertTrue(cycles.isNotEmpty(), "주기 정보 존재")
-        val cycle = cycles.first()
-        assertNotNull(cycle.actualPeriod, "돌발 출혈 기록")
-    }
+        assertTrue(marchCycles.isNotEmpty(), "3월 주기 정보 존재")
+        val marchCycle = marchCycles.first()
 
-    /**
-     * TC-05-14: 생리 유형 - 지연/무월경
-     * - 팩 구성: 21일 복용 / 7일 휴약
-     * - 휴약기에 생리 없음
-     */
-    @Test
-    fun testTC_05_14_periodTypeAmenorrhea() = runTest {
-        val repository = InMemoryPeriodRepository().apply {
-            addPeriod(
-                PeriodRecord(
-                    pk = "1",
-                    startDate = DateUtils.toJulianDay(LocalDate(2024, 11, 25)),
-                    endDate = DateUtils.toJulianDay(LocalDate(2024, 11, 29))
-                )
-            )
+        assertNotNull(marchCycle.thePillPeriod, "3월부터 피임약 주기 존재")
+        assertEquals(DEFAULT_CYCLE, marchCycle.thePillPeriod, "피임약 주기 = 28일")
 
-            // 21일 복용 패키지
-            addPillPackage(
-                PillPackage(
-                    packageStart = DateUtils.toJulianDay(LocalDate(2024, 12, 1)),
-                    pillCount = 21,
-                    restDays = 7
-                )
-            )
-
-            // 휴약기 (12/22~12/28)에 생리 없음
-
-            // 다음 팩
-            addPillPackage(
-                PillPackage(
-                    packageStart = DateUtils.toJulianDay(LocalDate(2024, 12, 29)),
-                    pillCount = 21,
-                    restDays = 7
-                )
-            )
-
-            setPillSettings(
-                PillSettings(
-                    isCalculatingWithPill = true,
-                    pillCount = 21,
-                    restPill = 7
-                )
-            )
-
-            setPeriodSettings(
-                PeriodSettings(
-                    manualAverageCycle = 28,
-                    manualAverageDay = 5,
-                    isAutoCalc = false
-                )
-            )
-        }
-
-        val today = LocalDate(2025, 1, 10)
-
-        val cycles = PeriodCalculator.calculateCycleInfo(
-            repository,
-            DateUtils.toJulianDay(LocalDate(2024, 11, 1)),
-            DateUtils.toJulianDay(LocalDate(2025, 2, 28)),
-            DateUtils.toJulianDay(today)
-        )
-
-        // 피임약 주기는 존재
-        assertTrue(cycles.isNotEmpty(), "주기 정보 존재")
-        val cycle = cycles.first()
-        assertNotNull(cycle.thePillPeriod, "피임약 주기 존재")
-    }
-
-    /**
-     * TC-05-15: 팩 지연 - 다음 팩 1일 지연
-     * - 팩 구성: 21일 복용 / 7일 휴약
-     * - 다음 팩 1일 늦게 시작
-     */
-    @Test
-    fun testTC_05_15_delayOneDayStart() = runTest {
-        val repository = InMemoryPeriodRepository().apply {
-            addPeriod(
-                PeriodRecord(
-                    pk = "1",
-                    startDate = DateUtils.toJulianDay(LocalDate(2024, 12, 1)),
-                    endDate = DateUtils.toJulianDay(LocalDate(2024, 12, 5))
-                )
-            )
-
-            // 첫 팩
-            addPillPackage(
-                PillPackage(
-                    packageStart = DateUtils.toJulianDay(LocalDate(2024, 12, 6)),
-                    pillCount = 21,
-                    restDays = 7
-                )
-            )
-
-            // 휴약기 생리
-            addPeriod(
-                PeriodRecord(
-                    pk = "2",
-                    startDate = DateUtils.toJulianDay(LocalDate(2024, 12, 29)),
-                    endDate = DateUtils.toJulianDay(LocalDate(2025, 1, 2))
-                )
-            )
-
-            // 다음 팩 (1일 지연)
-            addPillPackage(
-                PillPackage(
-                    packageStart = DateUtils.toJulianDay(LocalDate(2025, 1, 4)), // 1/3 예정 → 1/4 시작
-                    pillCount = 21,
-                    restDays = 7
-                )
-            )
-
-            setPillSettings(
-                PillSettings(
-                    isCalculatingWithPill = true,
-                    pillCount = 21,
-                    restPill = 7
-                )
-            )
-
-            setPeriodSettings(
-                PeriodSettings(
-                    manualAverageCycle = 28,
-                    manualAverageDay = 5,
-                    isAutoCalc = false
-                )
-            )
-        }
-
-        val today = LocalDate(2025, 1, 15)
-
-        val cycles = PeriodCalculator.calculateCycleInfo(
-            repository,
-            DateUtils.toJulianDay(LocalDate(2024, 11, 1)),
-            DateUtils.toJulianDay(LocalDate(2025, 2, 28)),
-            DateUtils.toJulianDay(today)
-        )
-
-        // 지연 후에도 주기 계산
-        assertTrue(cycles.isNotEmpty(), "주기 정보 존재")
-        val cycle = cycles.first()
-        assertNotNull(cycle.thePillPeriod, "피임약 주기 존재")
-    }
-
-    /**
-     * TC-05-16: 팩 지연 - 다음 팩 7일 지연
-     * - 팩 구성: 21일 복용 / 7일 휴약
-     * - 다음 팩 일주일 늦게 시작
-     */
-    @Test
-    fun testTC_05_16_delaySevenDayStart() = runTest {
-        val repository = InMemoryPeriodRepository().apply {
-            addPeriod(
-                PeriodRecord(
-                    pk = "1",
-                    startDate = DateUtils.toJulianDay(LocalDate(2024, 12, 1)),
-                    endDate = DateUtils.toJulianDay(LocalDate(2024, 12, 5))
-                )
-            )
-
-            // 첫 팩
-            addPillPackage(
-                PillPackage(
-                    packageStart = DateUtils.toJulianDay(LocalDate(2024, 12, 6)),
-                    pillCount = 21,
-                    restDays = 7
-                )
-            )
-
-            // 휴약기 생리
-            addPeriod(
-                PeriodRecord(
-                    pk = "2",
-                    startDate = DateUtils.toJulianDay(LocalDate(2024, 12, 29)),
-                    endDate = DateUtils.toJulianDay(LocalDate(2025, 1, 2))
-                )
-            )
-
-            // 다음 팩 (7일 지연)
-            addPillPackage(
-                PillPackage(
-                    packageStart = DateUtils.toJulianDay(LocalDate(2025, 1, 10)), // 1/3 예정 → 1/10 시작
-                    pillCount = 21,
-                    restDays = 7
-                )
-            )
-
-            setPillSettings(
-                PillSettings(
-                    isCalculatingWithPill = true,
-                    pillCount = 21,
-                    restPill = 7
-                )
-            )
-
-            setPeriodSettings(
-                PeriodSettings(
-                    manualAverageCycle = 28,
-                    manualAverageDay = 5,
-                    isAutoCalc = false
-                )
-            )
-        }
-
-        val today = LocalDate(2025, 1, 20)
-
-        val cycles = PeriodCalculator.calculateCycleInfo(
-            repository,
-            DateUtils.toJulianDay(LocalDate(2024, 11, 1)),
-            DateUtils.toJulianDay(LocalDate(2025, 2, 28)),
-            DateUtils.toJulianDay(today)
-        )
-
-        // 지연 후 주기 확인
-        assertTrue(cycles.isNotEmpty(), "주기 정보 존재")
-        val cycle = cycles.first()
-        assertNotNull(cycle.thePillPeriod, "피임약 주기 존재")
-    }
-
-    /**
-     * TC-05-17: 팩 지연 - 복용 중 누락
-     * - 팩 구성: 21일 복용 / 7일 휴약
-     * - 복용 중간에 3일 누락
-     */
-    @Test
-    fun testTC_05_17_delayMissedMiddle() = runTest {
-        val repository = InMemoryPeriodRepository().apply {
-            addPeriod(
-                PeriodRecord(
-                    pk = "1",
-                    startDate = DateUtils.toJulianDay(LocalDate(2024, 12, 1)),
-                    endDate = DateUtils.toJulianDay(LocalDate(2024, 12, 5))
-                )
-            )
-
-            // 첫 부분 복용 (10일)
-            addPillPackage(
-                PillPackage(
-                    packageStart = DateUtils.toJulianDay(LocalDate(2024, 12, 6)),
-                    pillCount = 10,
-                    restDays = 0
-                )
-            )
-
-            // 3일 누락 후 나머지 복용 (11일)
-            addPillPackage(
-                PillPackage(
-                    packageStart = DateUtils.toJulianDay(LocalDate(2024, 12, 19)),
-                    pillCount = 11,
-                    restDays = 7
-                )
-            )
-
-            setPillSettings(
-                PillSettings(
-                    isCalculatingWithPill = true,
-                    pillCount = 21,
-                    restPill = 7
-                )
-            )
-
-            setPeriodSettings(
-                PeriodSettings(
-                    manualAverageCycle = 28,
-                    manualAverageDay = 5,
-                    isAutoCalc = false
-                )
-            )
-        }
-
-        val today = LocalDate(2024, 12, 25)
-
-        val cycles = PeriodCalculator.calculateCycleInfo(
-            repository,
-            DateUtils.toJulianDay(LocalDate(2024, 11, 1)),
-            DateUtils.toJulianDay(LocalDate(2025, 1, 31)),
-            DateUtils.toJulianDay(today)
-        )
-
-        // 누락이 있어도 주기 계산
-        assertTrue(cycles.isNotEmpty(), "주기 정보 존재")
-        val cycle = cycles.first()
-        assertNotNull(cycle.thePillPeriod, "피임약 주기 존재")
-    }
-
-    /**
-     * TC-05-18: 다양한 구성 - 24/4 구성
-     * - 팩 구성: 24일 복용 / 4일 휴약
-     * - 표준과 다른 구성 테스트
-     */
-    @Test
-    fun testTC_05_18_config24_4() = runTest {
-        val repository = InMemoryPeriodRepository().apply {
-            addPeriod(
-                PeriodRecord(
-                    pk = "1",
-                    startDate = DateUtils.toJulianDay(LocalDate(2024, 12, 1)),
-                    endDate = DateUtils.toJulianDay(LocalDate(2024, 12, 5))
-                )
-            )
-
-            // 24/4 구성 패키지
-            addPillPackage(
-                PillPackage(
-                    packageStart = DateUtils.toJulianDay(LocalDate(2024, 12, 6)),
-                    pillCount = 24,
-                    restDays = 4
-                )
-            )
-
-            setPillSettings(
-                PillSettings(
-                    isCalculatingWithPill = true,
-                    pillCount = 24,
-                    restPill = 4
-                )
-            )
-
-            setPeriodSettings(
-                PeriodSettings(
-                    manualAverageCycle = 28,
-                    manualAverageDay = 5,
-                    isAutoCalc = false
-                )
-            )
-        }
-
-        val today = LocalDate(2024, 12, 25)
-
-        val cycles = PeriodCalculator.calculateCycleInfo(
-            repository,
-            DateUtils.toJulianDay(LocalDate(2024, 11, 1)),
-            DateUtils.toJulianDay(LocalDate(2025, 1, 31)),
-            DateUtils.toJulianDay(today)
-        )
-
-        // 24/4 구성 주기 확인
-        assertTrue(cycles.isNotEmpty(), "주기 정보 존재")
-        val cycle = cycles.first()
-        assertNotNull(cycle.thePillPeriod, "피임약 주기 존재")
-        assertEquals(28, cycle.thePillPeriod ?: 0, "피임약 주기 28일 (24+4)")
-    }
-
-    /**
-     * TC-05-19: 다양한 구성 - 21/2 구성
-     * - 팩 구성: 21일 복용 / 2일 휴약
-     * - 짧은 휴약기 테스트
-     */
-    @Test
-    fun testTC_05_19_config21_2() = runTest {
-        val repository = InMemoryPeriodRepository().apply {
-            addPeriod(
-                PeriodRecord(
-                    pk = "1",
-                    startDate = DateUtils.toJulianDay(LocalDate(2024, 12, 1)),
-                    endDate = DateUtils.toJulianDay(LocalDate(2024, 12, 5))
-                )
-            )
-
-            // 21/2 구성 패키지
-            addPillPackage(
-                PillPackage(
-                    packageStart = DateUtils.toJulianDay(LocalDate(2024, 12, 6)),
-                    pillCount = 21,
-                    restDays = 2
-                )
-            )
-
-            // 짧은 휴약기 생리
-            addPeriod(
-                PeriodRecord(
-                    pk = "2",
-                    startDate = DateUtils.toJulianDay(LocalDate(2024, 12, 28)),
-                    endDate = DateUtils.toJulianDay(LocalDate(2024, 12, 29))
-                )
-            )
-
-            setPillSettings(
-                PillSettings(
-                    isCalculatingWithPill = true,
-                    pillCount = 21,
-                    restPill = 2
-                )
-            )
-
-            setPeriodSettings(
-                PeriodSettings(
-                    manualAverageCycle = 28,
-                    manualAverageDay = 5,
-                    isAutoCalc = false
-                )
-            )
-        }
-
-        val today = LocalDate(2025, 1, 5)
-
-        val cycles = PeriodCalculator.calculateCycleInfo(
-            repository,
-            DateUtils.toJulianDay(LocalDate(2024, 11, 1)),
-            DateUtils.toJulianDay(LocalDate(2025, 1, 31)),
-            DateUtils.toJulianDay(today)
-        )
-
-        // 21/2 구성 주기 확인
-        assertTrue(cycles.isNotEmpty(), "주기 정보 존재")
-        val cycle = cycles.first()
-        assertNotNull(cycle.thePillPeriod, "피임약 주기 존재")
-        assertEquals(23, cycle.thePillPeriod ?: 0, "피임약 주기 23일 (21+2)")
-    }
-
-    /**
-     * TC-05-20: 전환 시나리오 - 일반 → 피임약
-     * - 일반 주기에서 피임약 복용 시작
-     * - 주기 변화 추적
-     */
-    @Test
-    fun testTC_05_20_transitionNormalToPill() = runTest {
-        val repository = InMemoryPeriodRepository().apply {
-            // 일반 생리 기록들
-            addPeriod(
-                PeriodRecord(
-                    pk = "1",
-                    startDate = DateUtils.toJulianDay(LocalDate(2024, 10, 1)),
-                    endDate = DateUtils.toJulianDay(LocalDate(2024, 10, 5))
-                )
-            )
-
-            addPeriod(
-                PeriodRecord(
-                    pk = "2",
-                    startDate = DateUtils.toJulianDay(LocalDate(2024, 10, 29)),
-                    endDate = DateUtils.toJulianDay(LocalDate(2024, 11, 2))
-                )
-            )
-
-            addPeriod(
-                PeriodRecord(
-                    pk = "3",
-                    startDate = DateUtils.toJulianDay(LocalDate(2024, 11, 26)),
-                    endDate = DateUtils.toJulianDay(LocalDate(2024, 11, 30))
-                )
-            )
-
-            // 피임약 시작
-            addPillPackage(
-                PillPackage(
-                    packageStart = DateUtils.toJulianDay(LocalDate(2024, 12, 1)),
-                    pillCount = 21,
-                    restDays = 7
-                )
-            )
-
-            setPillSettings(
-                PillSettings(
-                    isCalculatingWithPill = true,
-                    pillCount = 21,
-                    restPill = 7
-                )
-            )
-
-            setPeriodSettings(
-                PeriodSettings(
-                    manualAverageCycle = 28,
-                    manualAverageDay = 5,
-                    isAutoCalc = false
-                )
-            )
-        }
-
-        val today = LocalDate(2024, 12, 25)
-
-        val cycles = PeriodCalculator.calculateCycleInfo(
-            repository,
-            DateUtils.toJulianDay(LocalDate(2024, 9, 1)),
-            DateUtils.toJulianDay(LocalDate(2025, 1, 31)),
-            DateUtils.toJulianDay(today)
-        )
-
-        // 피임약 주기로 전환 확인
-        assertTrue(cycles.isNotEmpty(), "주기 정보 존재")
-        val cycle = cycles.first()
-        assertNotNull(cycle.thePillPeriod, "피임약 주기 존재")
-        assertEquals(28, cycle.thePillPeriod ?: 0, "피임약으로 규칙적 주기")
+        // 배란기/가임기 없음 확인
+        assertTrue(marchCycle.ovulationDays.isEmpty(), "피임약 복용 중 배란기 없음")
+        assertTrue(marchCycle.fertileDays.isEmpty(), "피임약 복용 중 가임기 없음")
     }
 }

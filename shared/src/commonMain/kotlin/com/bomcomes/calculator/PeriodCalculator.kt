@@ -433,26 +433,48 @@ object PeriodCalculator {
             isThePill = isThePill
         )
 
-        // 배란기 계산
-        val ovulationDays = calculateOvulationDays(
-            input = input,
-            lastPeriodStart = periodRecord.startDate,
-            fromDate = fromDate,
-            toDate = toDate,
-            period = period,
-            delayDays = delayDays
-        )
+        // 배란기 계산 (피임약 복용 중에는 계산하지 않음)
+        val ovulationDays = if (isThePill && input.pillSettings.isCalculatingWithPill) {
+            emptyList()
+        } else {
+            calculateOvulationDays(
+                input = input,
+                lastPeriodStart = periodRecord.startDate,
+                fromDate = fromDate,
+                toDate = toDate,
+                period = period,
+                delayDays = delayDays
+            )
+        }
 
-        // 가임기 계산
-        val fertileDays = calculateFertileDays(
-            input = input,
-            lastPeriodStart = periodRecord.startDate,
-            fromDate = fromDate,
-            toDate = toDate,
-            period = period,
-            delayDays = delayDays,
-            ovulationDays = ovulationDays
-        )
+        // 가임기 계산 (피임약 복용 중에는 계산하지 않음)
+        val fertileDays = if (isThePill && input.pillSettings.isCalculatingWithPill) {
+            emptyList()
+        } else {
+            calculateFertileDays(
+                input = input,
+                lastPeriodStart = periodRecord.startDate,
+                fromDate = fromDate,
+                toDate = toDate,
+                period = period,
+                delayDays = delayDays,
+                ovulationDays = ovulationDays
+            )
+        }
+
+        // 피임약 관련 정보 계산
+        val thePillPeriod = if (isThePill && input.pillSettings.isCalculatingWithPill) {
+            input.pillSettings.pillCount + input.pillSettings.restPill
+        } else {
+            null
+        }
+
+        // 현재 남은 휴약일 계산
+        val restPillDays = if (isThePill && input.pillSettings.isCalculatingWithPill) {
+            calculateRestPillDays(today, input.pillPackages, input.pillSettings)
+        } else {
+            null
+        }
 
         return CycleInfo(
             pk = periodRecord.pk,
@@ -462,8 +484,43 @@ object PeriodCalculator {
             fertileDays = fertileDays,
             delayDay = delayPeriod,
             delayTheDays = filteredDelayDays,
-            period = period
+            period = period,
+            thePillPeriod = thePillPeriod,
+            restPill = restPillDays
         )
+    }
+
+    /**
+     * 남은 휴약일 계산
+     */
+    private fun calculateRestPillDays(
+        today: Double,
+        pillPackages: List<PillPackage>,
+        pillSettings: PillSettings
+    ): Int? {
+        if (pillPackages.isEmpty()) return null
+
+        // 현재 날짜가 속한 피임약 패키지 찾기
+        for (pillPackage in pillPackages) {
+            val packageStart = pillPackage.packageStart
+            val packageEnd = packageStart + pillPackage.pillCount + pillPackage.restDays - 1
+
+            if (today >= packageStart && today <= packageEnd) {
+                // 현재 날짜가 이 패키지 내에 있음
+                val dayInPackage = (today - packageStart).toInt() + 1
+
+                if (dayInPackage > pillPackage.pillCount) {
+                    // 휴약 기간
+                    val restDayNumber = dayInPackage - pillPackage.pillCount
+                    return pillPackage.restDays - restDayNumber + 1
+                } else {
+                    // 복용 기간
+                    return 0
+                }
+            }
+        }
+
+        return null
     }
 
     /**
