@@ -33,6 +33,9 @@ internal object PillCalculator {
 
     /**
      * 피임약 기반 예정일 계산
+     *
+     * 5일 규칙: 피임약을 예정일 5일 전에 시작해야 피임약 기반 계산 적용
+     * 휴약기 0일: 연속 복용 시 예정일 없음
      */
     fun calculatePillBasedPredictDate(
         startDate: Double,
@@ -40,6 +43,9 @@ internal object PillCalculator {
         pillSettings: PillSettings,
         normalPeriod: Int
     ): Double? {
+        // 휴약기 0일이면 예정일 없음 (연속 복용)
+        if (pillSettings.restPill == 0) return null
+
         val pillsAfterStart = pillPackages.filter {
             it.packageStart >= startDate
         }

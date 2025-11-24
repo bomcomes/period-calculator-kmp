@@ -398,15 +398,32 @@ object PeriodCalculator {
         }
 
         // 피임약 사용 시 thePillPeriod를 먼저 계산 (iOS와 동일하게 동적 계산)
-        val thePillPeriod = if (isThePill && input.pillSettings.isCalculatingWithPill) {
+        // 5일 규칙: 피임약을 예정일 5일 전에 시작해야 피임약 기반 계산 적용
+        val pillBasedDate = if (isThePill && input.pillSettings.isCalculatingWithPill) {
             PillCalculator.calculatePillBasedPredictDate(
                 startDate = periodRecord.startDate,
                 pillPackages = input.pillPackages,
                 pillSettings = input.pillSettings,
                 normalPeriod = period
-            )?.let { pillPredictDate ->
-                (pillPredictDate - periodRecord.startDate).toInt()
-            } ?: (input.pillSettings.pillCount + input.pillSettings.restPill)
+            )
+        } else {
+            null
+        }
+
+        // 피임약 효과 적용 여부:
+        // 1. 5일 규칙 만족 (pillBasedDate != null), 또는
+        // 2. 연속 복용 (restPill == 0)
+        val isPillEffective = pillBasedDate != null ||
+            (isThePill && input.pillSettings.restPill == 0)
+
+        // 피임약 주기 (thePillPeriod) - 연속 복용(restPill == 0)이면 null
+        val thePillPeriod = if (isThePill && input.pillSettings.isCalculatingWithPill) {
+            if (input.pillSettings.restPill == 0) {
+                null  // 연속 복용 시 thePillPeriod 없음 (예정일/지연 없음)
+            } else {
+                pillBasedDate?.let { (it - periodRecord.startDate).toInt() }
+                    ?: (input.pillSettings.pillCount + input.pillSettings.restPill)
+            }
         } else {
             null
         }
@@ -418,22 +435,30 @@ object PeriodCalculator {
             period
         }
 
-        // 지연 일수 계산
-        val delayDays = CycleCalculator.calculateDelayDays(
-            lastTheDayStart = periodRecord.startDate,
-            fromDate = fromDate,
-            toDate = toDate,
-            todayOnly = today,
-            period = effectivePeriod
-        )
+        // 지연 일수 계산 (연속 복용 시 지연 없음)
+        val delayDays = if (isThePill && input.pillSettings.restPill == 0) {
+            0  // 연속 복용 시 지연 개념 없음
+        } else {
+            CycleCalculator.calculateDelayDays(
+                lastTheDayStart = periodRecord.startDate,
+                fromDate = fromDate,
+                toDate = toDate,
+                todayOnly = today,
+                period = effectivePeriod
+            )
+        }
 
-        // 지연 기간
-        val delayPeriodRaw = CycleCalculator.calculateDelayPeriod(
-            lastTheDayStart = periodRecord.startDate,
-            fromDate = fromDate,
-            period = effectivePeriod,
-            delayTheDays = delayDays
-        )
+        // 지연 기간 (연속 복용 시 지연 없음)
+        val delayPeriodRaw = if (isThePill && input.pillSettings.restPill == 0) {
+            null  // 연속 복용 시 지연 기간 없음
+        } else {
+            CycleCalculator.calculateDelayPeriod(
+                lastTheDayStart = periodRecord.startDate,
+                fromDate = fromDate,
+                period = effectivePeriod,
+                delayTheDays = delayDays
+            )
+        }
 
         // 지연 기간도 범위 필터링: startDate > toDate이면 제외
         val delayPeriod = delayPeriodRaw?.let {
@@ -454,8 +479,9 @@ object PeriodCalculator {
             isThePill = isThePill
         )
 
-        // 배란기 계산 (피임약 복용 중에는 계산하지 않음)
-        val ovulationDays = if (isThePill && input.pillSettings.isCalculatingWithPill) {
+        // 배란기 계산 (피임약 5일 규칙 만족 시에만 숨김)
+        // 5일 규칙: 예정일 5일 전에 복용 시작해야 배란기/가임기 숨김
+        val ovulationDays = if (isPillEffective) {
             emptyList()
         } else {
             calculateOvulationDays(
@@ -468,8 +494,8 @@ object PeriodCalculator {
             )
         }
 
-        // 가임기 계산 (피임약 복용 중에는 계산하지 않음)
-        val fertileDays = if (isThePill && input.pillSettings.isCalculatingWithPill) {
+        // 가임기 계산 (피임약 5일 규칙 만족 시에만 숨김)
+        val fertileDays = if (isPillEffective) {
             emptyList()
         } else {
             calculateFertileDays(
@@ -558,6 +584,11 @@ object PeriodCalculator {
 
         // 피임약 복용 중이면 피임약 기준 예정일 계산
         if (isThePill) {
+            // 휴약기 0일이면 예정일 없음 (연속 복용)
+            if (input.pillSettings.restPill == 0) {
+                return emptyList()
+            }
+
             val pillBasedDate = PillCalculator.calculatePillBasedPredictDate(
                 startDate = periodRecord.startDate,
                 pillPackages = input.pillPackages,
