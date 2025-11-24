@@ -115,11 +115,11 @@ class PillCalculatorTest {
 
     @Test
     fun testCalculatePillBasedPredictDate_pillBasedCalculation() {
-        // 피임약 기반 예정일 계산: 마지막 피임약 시작일 + pillCount
+        // 피임약 기반 예정일 계산: 마지막 피임약 시작일 + pillCount + 2 (휴약 3일째부터)
         val jan1 = DateUtils.toJulianDay(LocalDate(2025, 1, 1))
         val jan10 = DateUtils.toJulianDay(LocalDate(2025, 1, 10))
         val feb7 = DateUtils.toJulianDay(LocalDate(2025, 2, 7))
-        val feb28 = DateUtils.toJulianDay(LocalDate(2025, 2, 28))
+        val mar2 = DateUtils.toJulianDay(LocalDate(2025, 3, 2))
 
         val pillPackages = listOf(
             PillPackage(
@@ -141,8 +141,8 @@ class PillCalculatorTest {
             normalPeriod = 30
         )
 
-        // 마지막 피임약(2/7) + 21 = 2/28
-        assertEquals(feb28, result)
+        // 마지막 피임약(2/7) + 21 + 2 = 3/2 (휴약 3일째부터 생리 예정)
+        assertEquals(mar2, result)
     }
 
     @Test

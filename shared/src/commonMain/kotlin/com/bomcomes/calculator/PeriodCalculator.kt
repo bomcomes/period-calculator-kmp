@@ -411,11 +411,9 @@ object PeriodCalculator {
             null
         }
 
-        // 피임약 사용 시 예정일 종료까지를 기준으로 delay 계산
-        // (thePillPeriod + days = predictStart까지 + 생리기간 = predictEnd까지)
-        val days = input.periodSettings.getAverageDays()
+        // 피임약 사용 시 예정일 시작까지를 기준으로 delay 계산
         val effectivePeriod = if (thePillPeriod != null) {
-            thePillPeriod + days
+            thePillPeriod
         } else {
             period
         }
@@ -551,6 +549,11 @@ object PeriodCalculator {
         delayDays: Int,
         isThePill: Boolean
     ): List<DateRange> {
+        // 8일 이상 지연 시 예정일 표시 안 함 (병원 진료 권장)
+        if (delayDays >= 8) {
+            return emptyList()
+        }
+
         val days = input.periodSettings.getAverageDays()
 
         // 피임약 복용 중이면 피임약 기준 예정일 계산
@@ -563,10 +566,12 @@ object PeriodCalculator {
             )
 
             if (pillBasedDate != null) {
-                val predictEnd = pillBasedDate + days - 1
+                // 지연일 적용 (일반 주기와 동일하게)
+                val adjustedPillDate = pillBasedDate + delayDays
+                val predictEnd = adjustedPillDate + days - 1
                 // 쿼리 범위와 겹치는 경우에만 반환
-                if (predictEnd >= fromDate && pillBasedDate <= toDate) {
-                    return listOf(DateRange(pillBasedDate, predictEnd))
+                if (predictEnd >= fromDate && adjustedPillDate <= toDate) {
+                    return listOf(DateRange(adjustedPillDate, predictEnd))
                 }
                 return emptyList()
             }

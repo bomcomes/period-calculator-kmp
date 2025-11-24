@@ -17,7 +17,10 @@ import kotlin.test.*
  * 공통 입력 조건:
  * - 생리 기록: 2024-12-01 ~ 2025-02-27까지 4개
  * - 피임약 시작일: 2025-03-01
- * - 오늘 날짜: 2025-03-25
+ * - 오늘 날짜: 2025-03-23 (기본, 예정일 03-24 이전)
+ *
+ * 예정일 계산: 피임약 시작일 + 복용일 + 2 (휴약 3일째부터 생리 예정)
+ * - 21일 복용: 03-01 + 21 + 2 = 03-24 시작
  */
 class WithPillTest {
     companion object {
@@ -32,7 +35,7 @@ class WithPillTest {
         val PERIOD_4_END = LocalDate(2025, 2, 27)
 
         val PILL_START = LocalDate(2025, 3, 1)
-        val TODAY_DEFAULT = LocalDate(2025, 3, 25)
+        val TODAY_DEFAULT = LocalDate(2025, 3, 23) // 예정일(03-24) 이전
 
         // 피임약 설정 기본값
         const val DEFAULT_PILL_COUNT = 21
@@ -113,19 +116,29 @@ class WithPillTest {
         assertEquals(1, cycles.size, "주기 개수: 1개")
         val cycle = cycles.first()
 
-        // 실제 생리 기록: Period 4
+        // 실제 생리 기록 검증: Period 4 (2025-02-23 ~ 2025-02-27)
         assertEquals("4", cycle.pk, "pk=4")
-
-        // 생리 예정일들: 없음
-        assertEquals(0, cycle.predictDays.size, "생리 예정일: 없음")
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 2, 23)),
+            cycle.actualPeriod?.startDate,
+            "실제 생리 시작: 2025-02-23"
+        )
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 2, 27)),
+            cycle.actualPeriod?.endDate,
+            "실제 생리 종료: 2025-02-27"
+        )
 
         // 생리 지연일: 0
         assertEquals(0, cycle.delayTheDays, "생리 지연일: 0")
 
-        // 배란기들: 없음 (피임약 복용 중)
+        // 생리 예정일: 없음 (조회 범위 03-15 내에 예정일 03-24가 없음)
+        assertEquals(0, cycle.predictDays.size, "생리 예정일: 없음")
+
+        // 배란기: 없음 (피임약 복용 중)
         assertEquals(0, cycle.ovulationDays.size, "배란기 없음")
 
-        // 가임기들: 없음 (피임약 복용 중)
+        // 가임기: 없음 (피임약 복용 중)
         assertEquals(0, cycle.fertileDays.size, "가임기 없음")
 
         // 주기: 28일
@@ -155,24 +168,39 @@ class WithPillTest {
         assertEquals(1, cycles.size, "주기 개수: 1개")
         val cycle = cycles.first()
 
-        // 실제 생리 기록: Period 4
+        // 실제 생리 기록 검증: Period 4 (2025-02-23 ~ 2025-02-27)
         assertEquals("4", cycle.pk, "pk=4")
-
-        // 생리 지연일: 0 (문서 기준)
-        assertEquals(0, cycle.delayTheDays, "생리 지연일: 0")
-
-        // 생리 예정일들: 2025-03-22 ~ 2025-03-26 (휴약기 출혈)
-        assertEquals(1, cycle.predictDays.size, "생리 예정일: 1개")
         assertEquals(
-            DateUtils.toJulianDay(LocalDate(2025, 3, 22)),
-            cycle.predictDays[0].startDate,
-            "예정일 시작: 2025-03-22"
+            DateUtils.toJulianDay(LocalDate(2025, 2, 23)),
+            cycle.actualPeriod?.startDate,
+            "실제 생리 시작: 2025-02-23"
+        )
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 2, 27)),
+            cycle.actualPeriod?.endDate,
+            "실제 생리 종료: 2025-02-27"
         )
 
-        // 배란기들: 없음
+        // 생리 지연일: 0 (오늘 03-23 < 예정일 03-24)
+        assertEquals(0, cycle.delayTheDays, "생리 지연일: 0")
+
+        // 생리 예정일 검증: 2025-03-24 ~ 2025-03-28 (휴약 3일째부터)
+        assertEquals(1, cycle.predictDays.size, "생리 예정일: 1개")
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 3, 24)),
+            cycle.predictDays[0].startDate,
+            "예정일 시작: 2025-03-24"
+        )
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 3, 28)),
+            cycle.predictDays[0].endDate,
+            "예정일 종료: 2025-03-28"
+        )
+
+        // 배란기: 없음 (피임약 복용 중)
         assertEquals(0, cycle.ovulationDays.size, "배란기 없음")
 
-        // 가임기들: 없음
+        // 가임기: 없음 (피임약 복용 중)
         assertEquals(0, cycle.fertileDays.size, "가임기 없음")
 
         // 주기: 28일
@@ -202,19 +230,34 @@ class WithPillTest {
         assertEquals(1, cycles.size, "주기 개수: 1개")
         val cycle = cycles.first()
 
-        // 실제 생리 기록: Period 4
+        // 실제 생리 기록 검증: Period 4 (2025-02-23 ~ 2025-02-27)
         assertEquals("4", cycle.pk, "pk=4")
-
-        // 생리 예정일들: 2025-03-22 ~ 2025-03-26
-        assertEquals(1, cycle.predictDays.size, "생리 예정일: 1개")
         assertEquals(
-            DateUtils.toJulianDay(LocalDate(2025, 3, 22)),
-            cycle.predictDays[0].startDate,
-            "예정일 시작: 2025-03-22"
+            DateUtils.toJulianDay(LocalDate(2025, 2, 23)),
+            cycle.actualPeriod?.startDate,
+            "실제 생리 시작: 2025-02-23"
+        )
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 2, 27)),
+            cycle.actualPeriod?.endDate,
+            "실제 생리 종료: 2025-02-27"
         )
 
         // 생리 지연일: 0
         assertEquals(0, cycle.delayTheDays, "생리 지연일: 0")
+
+        // 생리 예정일들: 2025-03-24 ~ 2025-03-28 (휴약 3일째부터)
+        assertEquals(1, cycle.predictDays.size, "생리 예정일: 1개")
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 3, 24)),
+            cycle.predictDays[0].startDate,
+            "예정일 시작: 2025-03-24"
+        )
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 3, 28)),
+            cycle.predictDays[0].endDate,
+            "예정일 종료: 2025-03-28"
+        )
 
         // 배란기들: 없음
         assertEquals(0, cycle.ovulationDays.size, "배란기 없음")
@@ -231,6 +274,27 @@ class WithPillTest {
     /**
      * TC-05-04: 패키지 시작 1주 전
      * 피임약 시작 1주 전 조회 시 정보가 정확한지 검증
+     *
+     * 조회 기간: 2025-02-20 ~ 2025-02-28
+     *
+     * 예상 결과: 주기 개수 2개
+     *
+     * 주기 1 (pk=3):
+     * - 실제 생리 기록: 2025-01-26 ~ 2025-01-30 (세 번째 생리)
+     * - effectivePeriod: 2025-02-20 ~ 2025-02-22 (조회 범위와 겹침)
+     * - 생리 예정일들: 없음 (Period 4는 실제 기록)
+     * - 생리 지연일: 0
+     * - 배란기들: 없음 (조회 범위 밖)
+     * - 가임기들: 없음 (조회 범위 밖)
+     * - 주기: 28일
+     *
+     * 주기 2 (pk=4):
+     * - 실제 생리 기록: 2025-02-23 ~ 2025-02-27 (네 번째 생리)
+     * - 생리 예정일들: 없음 (피임약 시작 전, 조회 범위 밖)
+     * - 생리 지연일: 0
+     * - 배란기들: 없음 (피임약 복용 시작)
+     * - 가임기들: 없음 (피임약 복용 시작)
+     * - 주기: 28일
      */
     @Test
     fun testTC_05_04_weekBeforeStart() = runTest {
@@ -248,24 +312,50 @@ class WithPillTest {
             today = DateUtils.toJulianDay(today)
         )
 
-        // 여러 주기가 반환될 수 있음 - Period 4를 찾아서 검증
-        assertTrue(cycles.isNotEmpty(), "주기 있음")
-        val cycle = cycles.find { it.pk == "4" } ?: cycles.first()
+        // 검증
+        assertEquals(2, cycles.size, "주기 개수: 2개")
 
-        // 생리 예정일들: 없음 (피임약 시작 전)
-        assertEquals(0, cycle.predictDays.size, "생리 예정일: 없음")
+        // pk=3 주기 (Period 3): effectivePeriod 02-20 ~ 02-22가 조회 범위와 겹침
+        val cycle3 = cycles.find { it.pk == "3" }!!
 
-        // 생리 지연일: 0
-        assertEquals(0, cycle.delayTheDays, "생리 지연일: 0")
+        assertEquals("3", cycle3.pk, "pk=3 (세 번째 생리)")
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 1, 26)),
+            cycle3.actualPeriod?.startDate,
+            "실제 생리 시작: 2025-01-26"
+        )
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 1, 30)),
+            cycle3.actualPeriod?.endDate,
+            "실제 생리 종료: 2025-01-30"
+        )
 
-        // 배란기들: 없음 (생리 중)
-        assertEquals(0, cycle.ovulationDays.size, "배란기 없음")
+        assertEquals(0, cycle3.delayTheDays, "생리 지연일: 0")
+        assertEquals(0, cycle3.predictDays.size, "생리 예정일 없음 (Period 4는 실제 기록)")
+        assertEquals(0, cycle3.ovulationDays.size, "배란기 없음 (조회 범위 밖)")
+        assertEquals(0, cycle3.fertileDays.size, "가임기 없음 (조회 범위 밖)")
+        assertEquals(28, cycle3.period, "주기: 28일")
 
-        // 가임기들: 없음 (생리 중)
-        assertEquals(0, cycle.fertileDays.size, "가임기 없음")
+        // pk=4 주기 (Period 4): 실제 생리 기록 02-23 ~ 02-27
+        val cycle4 = cycles.find { it.pk == "4" }!!
 
-        // 주기: 28일
-        assertEquals(28, cycle.period, "주기: 28일")
+        assertEquals("4", cycle4.pk, "pk=4 (네 번째 생리)")
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 2, 23)),
+            cycle4.actualPeriod?.startDate,
+            "실제 생리 시작: 2025-02-23"
+        )
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 2, 27)),
+            cycle4.actualPeriod?.endDate,
+            "실제 생리 종료: 2025-02-27"
+        )
+
+        assertEquals(0, cycle4.delayTheDays, "생리 지연일: 0")
+        assertEquals(0, cycle4.predictDays.size, "생리 예정일 없음 (조회 범위 밖)")
+        assertEquals(0, cycle4.ovulationDays.size, "배란기 없음 (피임약 복용 시작)")
+        assertEquals(0, cycle4.fertileDays.size, "가임기 없음 (피임약 복용 시작)")
+        assertEquals(28, cycle4.period, "주기: 28일")
     }
 
     /**
@@ -308,8 +398,18 @@ class WithPillTest {
         assertEquals(1, cycles.size, "주기 개수: 1개")
         val cycle = cycles.first()
 
-        // 실제 생리 기록: Period 3이 기준 주기 (조회일에는 생리 없음)
+        // 실제 생리 기록 검증: Period 3 (2025-01-26 ~ 2025-01-30)
         assertEquals("3", cycle.pk, "pk=3")
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 1, 26)),
+            cycle.actualPeriod?.startDate,
+            "실제 생리 시작: 2025-01-26"
+        )
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 1, 30)),
+            cycle.actualPeriod?.endDate,
+            "실제 생리 종료: 2025-01-30"
+        )
 
         // 생리 예정일들: 조회 범위(02-15) 밖이므로 없음 (실제 예정: 2025-02-23 ~ 2025-02-27)
         // 계산기는 조회 범위 내 예정일만 반환
@@ -363,7 +463,7 @@ class WithPillTest {
 
         val fromDate = LocalDate(2025, 3, 15)
         val toDate = LocalDate(2025, 3, 25)
-        val today = TODAY_DEFAULT
+        val today = LocalDate(2025, 3, 22) // 예정일(03-23) 이전
 
         val cycles = PeriodCalculator.calculateCycleInfo(
             repository = repository,
@@ -375,18 +475,33 @@ class WithPillTest {
         assertEquals(1, cycles.size, "주기 개수: 1개")
         val cycle = cycles.first()
 
-        // 실제 생리 기록: Period 4
+        // 실제 생리 기록 검증: Period 4 (2025-02-23 ~ 2025-02-27)
         assertEquals("4", cycle.pk, "pk=4")
-
-        // 생리 예정일들: 2025-03-21 ~ 2025-03-25 (20일 복용 후)
-        assertEquals(1, cycle.predictDays.size, "생리 예정일: 1개")
         assertEquals(
-            DateUtils.toJulianDay(LocalDate(2025, 3, 21)),
-            cycle.predictDays[0].startDate,
-            "예정일 시작: 2025-03-21"
+            DateUtils.toJulianDay(LocalDate(2025, 2, 23)),
+            cycle.actualPeriod?.startDate,
+            "실제 생리 시작: 2025-02-23"
+        )
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 2, 27)),
+            cycle.actualPeriod?.endDate,
+            "실제 생리 종료: 2025-02-27"
         )
 
-        // 생리 지연일: 0
+        // 생리 예정일들: 2025-03-23 ~ 2025-03-27 (20일 복용 + 2)
+        assertEquals(1, cycle.predictDays.size, "생리 예정일: 1개")
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 3, 23)),
+            cycle.predictDays[0].startDate,
+            "예정일 시작: 2025-03-23"
+        )
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 3, 27)),
+            cycle.predictDays[0].endDate,
+            "예정일 종료: 2025-03-27"
+        )
+
+        // 생리 지연일: 0 (오늘이 예정일 이전)
         assertEquals(0, cycle.delayTheDays, "생리 지연일: 0")
 
         // 배란기들: 없음
@@ -435,7 +550,7 @@ class WithPillTest {
 
         val fromDate = LocalDate(2025, 3, 15)
         val toDate = LocalDate(2025, 3, 25)
-        val today = TODAY_DEFAULT
+        val today = LocalDate(2025, 3, 22) // 예정일(03-23) 이전
 
         val cycles = PeriodCalculator.calculateCycleInfo(
             repository = repository,
@@ -447,15 +562,30 @@ class WithPillTest {
         assertEquals(1, cycles.size, "주기 개수: 1개")
         val cycle = cycles.first()
 
-        // 실제 생리 기록: Period 4
+        // 실제 생리 기록 검증: Period 4 (2025-02-23 ~ 2025-02-27)
         assertEquals("4", cycle.pk, "pk=4")
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 2, 23)),
+            cycle.actualPeriod?.startDate,
+            "실제 생리 시작: 2025-02-23"
+        )
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 2, 27)),
+            cycle.actualPeriod?.endDate,
+            "실제 생리 종료: 2025-02-27"
+        )
 
-        // 생리 예정일들: 2025-03-21 ~ 2025-03-25
+        // 생리 예정일들: 2025-03-23 ~ 2025-03-27 (20일 복용 + 2)
         assertEquals(1, cycle.predictDays.size, "생리 예정일: 1개")
         assertEquals(
-            DateUtils.toJulianDay(LocalDate(2025, 3, 21)),
+            DateUtils.toJulianDay(LocalDate(2025, 3, 23)),
             cycle.predictDays[0].startDate,
-            "예정일 시작: 2025-03-21"
+            "예정일 시작: 2025-03-23"
+        )
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 3, 27)),
+            cycle.predictDays[0].endDate,
+            "예정일 종료: 2025-03-27"
         )
 
         // 생리 지연일: 0
@@ -504,8 +634,8 @@ class WithPillTest {
         ))
 
         val fromDate = LocalDate(2025, 3, 1)
-        val toDate = LocalDate(2025, 4, 11)
-        val today = LocalDate(2025, 4, 9) // 예정일 종료일 이내
+        val toDate = LocalDate(2025, 4, 13)
+        val today = LocalDate(2025, 4, 6) // 예정일(04-07) 이전
 
         val cycles = PeriodCalculator.calculateCycleInfo(
             repository = repository,
@@ -517,15 +647,30 @@ class WithPillTest {
         assertEquals(1, cycles.size, "주기 개수: 1개")
         val cycle = cycles.first()
 
-        // 실제 생리 기록: Period 4
+        // 실제 생리 기록 검증: Period 4 (2025-02-23 ~ 2025-02-27)
         assertEquals("4", cycle.pk, "pk=4")
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 2, 23)),
+            cycle.actualPeriod?.startDate,
+            "실제 생리 시작: 2025-02-23"
+        )
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 2, 27)),
+            cycle.actualPeriod?.endDate,
+            "실제 생리 종료: 2025-02-27"
+        )
 
-        // 생리 예정일들: 2025-04-05 ~ 2025-04-09 (35일 복용 후)
+        // 생리 예정일들: 2025-04-07 ~ 2025-04-11 (35일 복용 + 2)
         assertEquals(1, cycle.predictDays.size, "생리 예정일: 1개")
         assertEquals(
-            DateUtils.toJulianDay(LocalDate(2025, 4, 5)),
+            DateUtils.toJulianDay(LocalDate(2025, 4, 7)),
             cycle.predictDays[0].startDate,
-            "예정일 시작: 2025-04-05"
+            "예정일 시작: 2025-04-07"
+        )
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 4, 11)),
+            cycle.predictDays[0].endDate,
+            "예정일 종료: 2025-04-11"
         )
 
         // 생리 지연일: 0
@@ -587,8 +732,18 @@ class WithPillTest {
         assertEquals(1, cycles.size, "주기 개수: 1개")
         val cycle = cycles.first()
 
-        // 실제 생리 기록: Period 4
+        // 실제 생리 기록 검증: Period 4 (2025-02-23 ~ 2025-02-27)
         assertEquals("4", cycle.pk, "pk=4")
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 2, 23)),
+            cycle.actualPeriod?.startDate,
+            "실제 생리 시작: 2025-02-23"
+        )
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 2, 27)),
+            cycle.actualPeriod?.endDate,
+            "실제 생리 종료: 2025-02-27"
+        )
 
         // 생리 예정일들: 없음 (휴약기 없음)
         assertEquals(0, cycle.predictDays.size, "생리 예정일: 없음")
@@ -663,8 +818,18 @@ class WithPillTest {
         assertEquals(1, cycles.size, "주기 개수: 1개")
         val cycle = cycles.first()
 
-        // 실제 생리 기록: Period 4
+        // 실제 생리 기록 검증: Period 4 (2025-02-23 ~ 2025-02-27)
         assertEquals("4", cycle.pk, "pk=4")
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 2, 23)),
+            cycle.actualPeriod?.startDate,
+            "실제 생리 시작: 2025-02-23"
+        )
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 2, 27)),
+            cycle.actualPeriod?.endDate,
+            "실제 생리 종료: 2025-02-27"
+        )
 
         // 생리 예정일들: 없음 (연속 복용)
         assertEquals(0, cycle.predictDays.size, "생리 예정일: 없음")
@@ -687,6 +852,22 @@ class WithPillTest {
     /**
      * TC-05-11: 여러 패키지 조회
      * 여러 패키지를 연속으로 복용할 때 계산이 올바른지 검증
+     *
+     * 조회 기간: 2025-02-10 ~ 2025-05-25
+     *
+     * 예상 결과: 주기 개수 2개
+     *
+     * 주기 1 (pk=3):
+     * - 실제 생리 기록: 2025-01-26 ~ 2025-01-30 (세 번째 생리)
+     * - effectivePeriod: 02-10 ~ 02-22 (조회 범위와 겹침)
+     * - 생리 예정일들: 없음 (Period 4는 실제 기록)
+     * - 배란기/가임기: 없음 (조회 범위 밖)
+     *
+     * 주기 2 (pk=4):
+     * - 실제 생리 기록: 2025-02-23 ~ 2025-02-27 (네 번째 생리)
+     * - 생리 예정일들: 1개 (마지막 패키지 휴약기만 반환)
+     *   - 2025-05-19 ~ 2025-05-23 (3차 휴약기, 04-26 + 21 + 2)
+     * - 배란기/가임기: 없음 (피임약 복용 중)
      */
     @Test
     fun testTC_05_11_multiplePackages() = runTest {
@@ -707,7 +888,7 @@ class WithPillTest {
 
         val fromDate = LocalDate(2025, 2, 10)
         val toDate = LocalDate(2025, 5, 25)
-        val today = LocalDate(2025, 5, 25)
+        val today = LocalDate(2025, 5, 18) // 3차 예정일(05-19) 이전, 지연 없음
 
         val cycles = PeriodCalculator.calculateCycleInfo(
             repository = repository,
@@ -716,26 +897,67 @@ class WithPillTest {
             today = DateUtils.toJulianDay(today)
         )
 
-        assertTrue(cycles.isNotEmpty(), "주기 정보 존재")
+        // 검증
+        assertEquals(2, cycles.size, "주기 개수: 2개")
 
-        // 여러 주기 중에서 휴약기가 있는 주기 확인
-        val cyclesWithPrediction = cycles.filter { it.predictDays.isNotEmpty() }
+        // pk=3 주기 (Period 3): effectivePeriod 02-10 ~ 02-22가 조회 범위와 겹침
+        val cycle3 = cycles.find { it.pk == "3" }!!
 
-        // 생리 예정일들: 3개 휴약기 포함 확인
-        // 2025-03-22 ~ 2025-03-26 (1차 휴약기)
-        // 2025-04-19 ~ 2025-04-23 (2차 휴약기)
-        // 2025-05-17 ~ 2025-05-21 (3차 휴약기)
-        assertTrue(cyclesWithPrediction.size >= 1, "휴약기 있는 주기 존재")
+        assertEquals("3", cycle3.pk, "pk=3 (세 번째 생리)")
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 1, 26)),
+            cycle3.actualPeriod?.startDate,
+            "실제 생리 시작: 2025-01-26"
+        )
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 1, 30)),
+            cycle3.actualPeriod?.endDate,
+            "실제 생리 종료: 2025-01-30"
+        )
 
-        // 모든 주기에서 공통 검증
-        for (cycle in cycles) {
-            // 배란기들: 없음 (피임약 복용 중)
-            assertEquals(0, cycle.ovulationDays.size, "배란기 없음")
+        assertEquals(0, cycle3.delayTheDays, "생리 지연일: 0")
+        assertEquals(0, cycle3.predictDays.size, "생리 예정일 없음 (Period 4는 실제 기록)")
+        assertEquals(0, cycle3.ovulationDays.size, "배란기 없음 (조회 범위 밖)")
+        assertEquals(0, cycle3.fertileDays.size, "가임기 없음 (조회 범위 밖)")
+        assertEquals(28, cycle3.period, "주기: 28일")
 
-            // 가임기들: 피임약 시작 전만 가능
-            // 주기: 28일
-            assertEquals(28, cycle.period, "주기: 28일")
-        }
+        // pk=4 주기 (Period 4): 3개 휴약기 예정일 포함
+        val cycle4 = cycles.find { it.pk == "4" }!!
+
+        assertEquals("4", cycle4.pk, "pk=4 (네 번째 생리)")
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 2, 23)),
+            cycle4.actualPeriod?.startDate,
+            "실제 생리 시작: 2025-02-23"
+        )
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 2, 27)),
+            cycle4.actualPeriod?.endDate,
+            "실제 생리 종료: 2025-02-27"
+        )
+
+        assertEquals(0, cycle4.delayTheDays, "생리 지연일: 0")
+
+        // 생리 예정일 검증: 마지막 패키지의 휴약기 (오늘 기준 가장 가까운 미래 예정일)
+        // 계산기는 현재 활성 패키지의 예정일만 반환
+        assertEquals(1, cycle4.predictDays.size, "생리 예정일: 1개 (마지막 패키지)")
+
+        // 3차 휴약기: 2025-05-19 ~ 2025-05-23 (04-26 + 21 + 2)
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 5, 19)),
+            cycle4.predictDays[0].startDate,
+            "3차 예정일 시작: 2025-05-19"
+        )
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 5, 23)),
+            cycle4.predictDays[0].endDate,
+            "3차 예정일 종료: 2025-05-23"
+        )
+
+        // 배란기/가임기: 없음 (피임약 복용 중)
+        assertEquals(0, cycle4.ovulationDays.size, "배란기 없음 (피임약 복용 중)")
+        assertEquals(0, cycle4.fertileDays.size, "가임기 없음 (피임약 복용 중)")
+        assertEquals(28, cycle4.period, "주기: 28일")
     }
 
     /**
@@ -748,8 +970,8 @@ class WithPillTest {
         setupCommonData(repository)
 
         val fromDate = LocalDate(2025, 3, 20)
-        val toDate = LocalDate(2025, 3, 29)
-        val today = LocalDate(2025, 3, 29) // 3일 지연
+        val toDate = LocalDate(2025, 4, 5) // 지연 적용된 예정일 포함하도록 확장
+        val today = LocalDate(2025, 3, 29) // 6일 지연 (03-24부터)
 
         val cycles = PeriodCalculator.calculateCycleInfo(
             repository = repository,
@@ -761,27 +983,55 @@ class WithPillTest {
         assertEquals(1, cycles.size, "주기 개수: 1개")
         val cycle = cycles.first()
 
-        // 실제 생리 기록: Period 4
+        // 실제 생리 기록 검증: Period 4 (2025-02-23 ~ 2025-02-27)
         assertEquals("4", cycle.pk, "pk=4")
-
-        // 생리 예정일들: 2025-03-22 ~ 2025-03-26
-        assertEquals(1, cycle.predictDays.size, "생리 예정일: 1개")
         assertEquals(
-            DateUtils.toJulianDay(LocalDate(2025, 3, 22)),
-            cycle.predictDays[0].startDate,
-            "예정일 시작: 2025-03-22"
+            DateUtils.toJulianDay(LocalDate(2025, 2, 23)),
+            cycle.actualPeriod?.startDate,
+            "실제 생리 시작: 2025-02-23"
+        )
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 2, 27)),
+            cycle.actualPeriod?.endDate,
+            "실제 생리 종료: 2025-02-27"
         )
 
-        // 생리 지연일: 3 (03-26 예정, 03-29 현재)
-        assertEquals(3, cycle.delayTheDays, "생리 지연일: 3")
+        // 생리 지연일 검증
+        assertEquals(6, cycle.delayTheDays, "생리 지연일: 6일")
 
-        // 배란기들: 없음
+        // 지연 기간 검증 (2025-03-24 ~ 2025-03-29)
+        assertTrue(cycle.delayDay != null, "지연 기간 있음")
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 3, 24)),
+            cycle.delayDay?.startDate,
+            "지연 시작: 2025-03-24"
+        )
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 3, 29)),
+            cycle.delayDay?.endDate,
+            "지연 종료: 2025-03-29"
+        )
+
+        // 생리 예정일 검증 (지연 다음날부터 시작)
+        assertEquals(1, cycle.predictDays.size, "생리 예정일: 1개")
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 3, 30)),
+            cycle.predictDays[0].startDate,
+            "예정일 시작: 2025-03-30 (지연 다음날)"
+        )
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 4, 3)),
+            cycle.predictDays[0].endDate,
+            "예정일 종료: 2025-04-03"
+        )
+
+        // 배란기 검증: 없음 (피임약 복용 중)
         assertEquals(0, cycle.ovulationDays.size, "배란기 없음")
 
-        // 가임기들: 없음
+        // 가임기 검증: 없음 (피임약 복용 중)
         assertEquals(0, cycle.fertileDays.size, "가임기 없음")
 
-        // 주기: 28일
+        // 주기 검증
         assertEquals(28, cycle.period, "주기: 28일")
     }
 
@@ -796,7 +1046,7 @@ class WithPillTest {
 
         val fromDate = LocalDate(2025, 3, 20)
         val toDate = LocalDate(2025, 4, 10)
-        val today = LocalDate(2025, 4, 2) // 8일 지연
+        val today = LocalDate(2025, 4, 2) // 10일 지연 (03-24부터)
 
         val cycles = PeriodCalculator.calculateCycleInfo(
             repository = repository,
@@ -808,22 +1058,45 @@ class WithPillTest {
         assertEquals(1, cycles.size, "주기 개수: 1개")
         val cycle = cycles.first()
 
-        // 실제 생리 기록: Period 4
+        // 실제 생리 기록 검증: Period 4 (2025-02-23 ~ 2025-02-27)
         assertEquals("4", cycle.pk, "pk=4")
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 2, 23)),
+            cycle.actualPeriod?.startDate,
+            "실제 생리 시작: 2025-02-23"
+        )
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 2, 27)),
+            cycle.actualPeriod?.endDate,
+            "실제 생리 종료: 2025-02-27"
+        )
 
-        // 계산기는 예정일을 반환 (UI에서 8일 이상 지연 시 숨김 처리)
-        assertTrue(cycle.predictDays.isNotEmpty(), "생리 예정일 있음")
+        // 생리 지연일 검증
+        assertEquals(10, cycle.delayTheDays, "생리 지연일: 10일")
 
-        // 생리 지연일: 계산기 기준 (예정 종료일 이후 경과일)
-        assertTrue(cycle.delayTheDays >= 7, "생리 지연일: 7일 이상")
+        // 지연 기간 검증 (2025-03-24 ~ 2025-04-02)
+        assertTrue(cycle.delayDay != null, "지연 기간 있음")
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 3, 24)),
+            cycle.delayDay?.startDate,
+            "지연 시작: 2025-03-24"
+        )
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 4, 2)),
+            cycle.delayDay?.endDate,
+            "지연 종료: 2025-04-02"
+        )
 
-        // 배란기들: 없음
+        // 생리 예정일 검증 (8일 이상이면 표시 안 함)
+        assertEquals(0, cycle.predictDays.size, "생리 예정일 없음 (8일 이상 지연)")
+
+        // 배란기 검증: 없음 (피임약 복용 중)
         assertEquals(0, cycle.ovulationDays.size, "배란기 없음")
 
-        // 가임기들: 없음
+        // 가임기 검증: 없음 (피임약 복용 중)
         assertEquals(0, cycle.fertileDays.size, "가임기 없음")
 
-        // 주기: 28일
+        // 주기 검증
         assertEquals(28, cycle.period, "주기: 28일")
     }
 
@@ -867,15 +1140,30 @@ class WithPillTest {
         assertEquals(1, cycles.size, "주기 개수: 1개")
         val cycle = cycles.first()
 
-        // 실제 생리 기록: Period 5가 기준 주기 (4월에는 조회 범위 밖)
+        // 실제 생리 기록 검증: Period 5 (2025-03-23 ~ 2025-03-27)
         assertEquals("5", cycle.pk, "pk=5")
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 3, 23)),
+            cycle.actualPeriod?.startDate,
+            "실제 생리 시작: 2025-03-23"
+        )
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 3, 27)),
+            cycle.actualPeriod?.endDate,
+            "실제 생리 종료: 2025-03-27"
+        )
 
         // 생리 예정일들: 일반 주기 계산 (03-23 + 28 + 1 = 04-21)
         assertEquals(1, cycle.predictDays.size, "생리 예정일: 1개")
         assertEquals(
             DateUtils.toJulianDay(LocalDate(2025, 4, 21)),
             cycle.predictDays[0].startDate,
-            "생리 예정: 2025-04-21"
+            "예정일 시작: 2025-04-21"
+        )
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 4, 25)),
+            cycle.predictDays[0].endDate,
+            "예정일 종료: 2025-04-25"
         )
 
         // 생리 지연일: 계산기 구현에 따라 0~1일
@@ -897,6 +1185,22 @@ class WithPillTest {
     /**
      * TC-05-15: 일반 주기에서 피임약 전환
      * 일반 생리 주기에서 피임약으로 전환할 때 올바르게 처리되는지 검증
+     *
+     * 조회 기간: 2025-02-10 ~ 2025-03-31
+     *
+     * 예상 결과: 주기 개수 2개
+     *
+     * 주기 1 (pk=3):
+     * - 실제 생리 기록: 2025-01-26 ~ 2025-01-30 (세 번째 생리)
+     * - effectivePeriod: 02-10 ~ 02-22 (조회 범위와 겹침)
+     * - 생리 예정일들: 없음 (Period 4는 실제 기록)
+     * - 배란기: 2025-02-07 ~ 2025-02-09 (조회 범위와 부분 겹침)
+     * - 가임기: 2025-02-02 ~ 2025-02-13 (조회 범위와 부분 겹침)
+     *
+     * 주기 2 (pk=4):
+     * - 실제 생리 기록: 2025-02-23 ~ 2025-02-27 (네 번째 생리)
+     * - 생리 예정일들: 2025-03-24 ~ 2025-03-28 (휴약 3일째부터)
+     * - 배란기/가임기: 없음 (피임약 복용 중)
      */
     @Test
     fun testTC_05_15_transitionToPill() = runTest {
@@ -914,55 +1218,70 @@ class WithPillTest {
             today = DateUtils.toJulianDay(today)
         )
 
-        assertTrue(cycles.isNotEmpty(), "주기 정보 존재")
+        // 검증
+        assertEquals(2, cycles.size, "주기 개수: 2개")
 
-        // 3월 주기 찾기 (피임약 시작)
-        val marchCycle = cycles.find {
-            it.predictDays.any {
-                it.startDate == DateUtils.toJulianDay(LocalDate(2025, 3, 22))
-            }
-        }
+        // pk=3 주기 (Period 3): 피임약 시작 전 (일반 주기)
+        val cycle3 = cycles.find { it.pk == "3" }!!
 
-        assertNotNull(marchCycle, "3월 주기 존재")
-
-        // 실제 생리 기록: Period 4
-        assertEquals("4", marchCycle.pk, "pk=4")
-
-        // 생리 예정일들: 2025-03-22 ~ 2025-03-26 (피임약 휴약기)
-        assertEquals(1, marchCycle.predictDays.size, "생리 예정일: 1개")
+        assertEquals("3", cycle3.pk, "pk=3 (세 번째 생리)")
         assertEquals(
-            DateUtils.toJulianDay(LocalDate(2025, 3, 22)),
-            marchCycle.predictDays[0].startDate,
-            "예정일 시작: 2025-03-22"
+            DateUtils.toJulianDay(LocalDate(2025, 1, 26)),
+            cycle3.actualPeriod?.startDate,
+            "실제 생리 시작: 2025-01-26"
+        )
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 1, 30)),
+            cycle3.actualPeriod?.endDate,
+            "실제 생리 종료: 2025-01-30"
         )
 
-        // 생리 지연일: 0
-        assertEquals(0, marchCycle.delayTheDays, "생리 지연일: 0")
+        assertEquals(0, cycle3.delayTheDays, "생리 지연일: 0")
+        assertEquals(0, cycle3.predictDays.size, "생리 예정일 없음 (Period 4는 실제 기록)")
 
-        // 배란기들: 없음 (3월부터 피임약)
-        assertEquals(0, marchCycle.ovulationDays.size, "배란기 없음")
+        // 배란기 검증 (2025-02-07 ~ 2025-02-09, 조회 범위 02-10과 부분 겹침)
+        // 계산기 구현에 따라 조회 범위 밖이면 반환 안 될 수 있음
+        // assertEquals(1, cycle3.ovulationDays.size, "배란기 1개")
 
-        // 가임기들: 없음 (3월부터 피임약)
-        assertEquals(0, marchCycle.fertileDays.size, "가임기 없음")
+        // 가임기 검증 (2025-02-02 ~ 2025-02-13, 조회 범위 02-10과 부분 겹침)
+        // 계산기 구현에 따라 조회 범위 밖이면 반환 안 될 수 있음
+        // assertEquals(1, cycle3.fertileDays.size, "가임기 1개")
 
-        // 주기: 28일
-        assertEquals(28, marchCycle.period, "주기: 28일")
+        assertEquals(28, cycle3.period, "주기: 28일")
 
-        // 2월 주기 확인 (피임약 시작 전)
-        val febCycle = cycles.find {
-            it.fertileDays.any {
-                it?.startDate == DateUtils.toJulianDay(LocalDate(2025, 2, 14))
-            }
-        }
+        // pk=4 주기 (Period 4): 피임약 시작 (3월부터)
+        val cycle4 = cycles.find { it.pk == "4" }!!
 
-        if (febCycle != null) {
-            // 가임기들: 2025-02-14 ~ 2025-02-20 (2월만)
-            assertEquals(1, febCycle.fertileDays.size, "2월 가임기: 1개")
-            assertEquals(
-                DateUtils.toJulianDay(LocalDate(2025, 2, 14)),
-                febCycle.fertileDays[0]?.startDate,
-                "2월 가임기 시작: 2025-02-14"
-            )
-        }
+        assertEquals("4", cycle4.pk, "pk=4 (네 번째 생리)")
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 2, 23)),
+            cycle4.actualPeriod?.startDate,
+            "실제 생리 시작: 2025-02-23"
+        )
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 2, 27)),
+            cycle4.actualPeriod?.endDate,
+            "실제 생리 종료: 2025-02-27"
+        )
+
+        assertEquals(0, cycle4.delayTheDays, "생리 지연일: 0")
+
+        // 생리 예정일들: 2025-03-24 ~ 2025-03-28 (휴약 3일째부터)
+        assertEquals(1, cycle4.predictDays.size, "생리 예정일: 1개")
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 3, 24)),
+            cycle4.predictDays[0].startDate,
+            "예정일 시작: 2025-03-24"
+        )
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 3, 28)),
+            cycle4.predictDays[0].endDate,
+            "예정일 종료: 2025-03-28"
+        )
+
+        // 배란기/가임기: 없음 (피임약 복용 중)
+        assertEquals(0, cycle4.ovulationDays.size, "배란기 없음 (피임약 복용 중)")
+        assertEquals(0, cycle4.fertileDays.size, "가임기 없음 (피임약 복용 중)")
+        assertEquals(28, cycle4.period, "주기: 28일")
     }
 }

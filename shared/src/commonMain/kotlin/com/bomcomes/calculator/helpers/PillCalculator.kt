@@ -51,7 +51,8 @@ internal object PillCalculator {
 
         return if (daysFromPillToPredict >= 5) {
             val lastPill = pillsAfterStart.last()
-            lastPill.packageStart + pillSettings.pillCount
+            // iOS와 동일: 휴약 3일째부터 생리 예정 (pillCount + 2)
+            lastPill.packageStart + pillSettings.pillCount + 2
         } else {
             null
         }
