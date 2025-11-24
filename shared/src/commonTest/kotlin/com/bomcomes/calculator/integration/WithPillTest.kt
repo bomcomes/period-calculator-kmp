@@ -9,19 +9,9 @@ import kotlinx.datetime.LocalDate
 import kotlin.test.*
 
 /**
- * 피임약 복용 테스트 (8개)
+ * 피임약 복용 테스트 (10개)
  *
  * 문서 참조: test-cases/docs/05-with-pill.md
- *
- * 핵심 테스트 케이스:
- * - TC-05-01: 기본 복용 (1개월)
- * - TC-05-02: 휴약기 0일 (연속 복용)
- * - TC-05-03: 여러 패키지
- * - TC-05-04: 지연 1-7일
- * - TC-05-05: 지연 8일 이상
- * - TC-05-06: 5일 전 복용 (배란기 숨김)
- * - TC-05-07: 5일 이후 복용 (배란기 노출)
- * - TC-05-08: 피임약 중단
  *
  * 5일 규칙:
  * - 피임약을 예정일 5일 전에 복용해야 피임약 기반 계산 적용
@@ -31,10 +21,14 @@ import kotlin.test.*
  */
 class WithPillTest {
     companion object {
-        val PERIOD_4_START = LocalDate(2025, 2, 23)
-        val PERIOD_4_END = LocalDate(2025, 2, 27)
+        // 기본 생리 기록: 2025-02-23 ~ 02-27
+        val LAST_PERIOD_START = LocalDate(2025, 2, 23)
+        val LAST_PERIOD_END = LocalDate(2025, 2, 27)
+
+        // 피임약 시작일: 2025-03-01
         val PILL_START = LocalDate(2025, 3, 1)
 
+        // 피임약 설정
         const val DEFAULT_PILL_COUNT = 21
         const val DEFAULT_REST_DAYS = 7
         const val DEFAULT_CYCLE = 28
@@ -42,9 +36,9 @@ class WithPillTest {
 
     private fun setupBasicData(repository: InMemoryPeriodRepository) {
         repository.addPeriod(PeriodRecord(
-            pk = "4",
-            startDate = DateUtils.toJulianDay(PERIOD_4_START),
-            endDate = DateUtils.toJulianDay(PERIOD_4_END)
+            pk = "1",
+            startDate = DateUtils.toJulianDay(LAST_PERIOD_START),
+            endDate = DateUtils.toJulianDay(LAST_PERIOD_END)
         ))
 
         repository.setPeriodSettings(PeriodSettings(
@@ -89,7 +83,7 @@ class WithPillTest {
         assertEquals(1, cycles.size)
         val cycle = cycles.first()
 
-        assertEquals("4", cycle.pk)
+        assertEquals("1", cycle.pk)
         // 예정일: 03-01 + 21 + 2 = 03-24 시작
         assertEquals(1, cycle.predictDays.size, "예정일 1개")
         assertEquals(
@@ -111,9 +105,9 @@ class WithPillTest {
         val repository = InMemoryPeriodRepository()
 
         repository.addPeriod(PeriodRecord(
-            pk = "4",
-            startDate = DateUtils.toJulianDay(PERIOD_4_START),
-            endDate = DateUtils.toJulianDay(PERIOD_4_END)
+            pk = "1",
+            startDate = DateUtils.toJulianDay(LAST_PERIOD_START),
+            endDate = DateUtils.toJulianDay(LAST_PERIOD_END)
         ))
 
         repository.setPeriodSettings(PeriodSettings(
@@ -187,17 +181,17 @@ class WithPillTest {
             today = DateUtils.toJulianDay(today)
         )
 
-        val cycle4 = cycles.find { it.pk == "4" }!!
+        val cycle = cycles.find { it.pk == "1" }!!
 
         // 마지막 패키지 예정일만: 04-26 + 21 + 2 = 05-19
-        assertEquals(1, cycle4.predictDays.size, "예정일 1개 (마지막 패키지)")
+        assertEquals(1, cycle.predictDays.size, "예정일 1개 (마지막 패키지)")
         assertEquals(
             DateUtils.toJulianDay(LocalDate(2025, 5, 19)),
-            cycle4.predictDays[0].startDate,
+            cycle.predictDays[0].startDate,
             "3차 예정일: 05-19"
         )
-        assertEquals(0, cycle4.ovulationDays.size, "배란기 없음")
-        assertEquals(0, cycle4.fertileDays.size, "가임기 없음")
+        assertEquals(0, cycle.ovulationDays.size, "배란기 없음")
+        assertEquals(0, cycle.fertileDays.size, "가임기 없음")
     }
 
     /**
@@ -264,9 +258,9 @@ class WithPillTest {
         val repository = InMemoryPeriodRepository()
 
         repository.addPeriod(PeriodRecord(
-            pk = "4",
-            startDate = DateUtils.toJulianDay(PERIOD_4_START),
-            endDate = DateUtils.toJulianDay(PERIOD_4_END)
+            pk = "1",
+            startDate = DateUtils.toJulianDay(LAST_PERIOD_START),
+            endDate = DateUtils.toJulianDay(LAST_PERIOD_END)
         ))
 
         repository.setPeriodSettings(PeriodSettings(
@@ -324,9 +318,9 @@ class WithPillTest {
         val repository = InMemoryPeriodRepository()
 
         repository.addPeriod(PeriodRecord(
-            pk = "4",
-            startDate = DateUtils.toJulianDay(PERIOD_4_START),
-            endDate = DateUtils.toJulianDay(PERIOD_4_END)
+            pk = "1",
+            startDate = DateUtils.toJulianDay(LAST_PERIOD_START),
+            endDate = DateUtils.toJulianDay(LAST_PERIOD_END)
         ))
 
         repository.setPeriodSettings(PeriodSettings(
@@ -385,12 +379,12 @@ class WithPillTest {
 
         // 생리 기록 2개
         repository.addPeriod(PeriodRecord(
-            pk = "4",
-            startDate = DateUtils.toJulianDay(PERIOD_4_START), // 02-23
-            endDate = DateUtils.toJulianDay(PERIOD_4_END)      // 02-27
+            pk = "1",
+            startDate = DateUtils.toJulianDay(LAST_PERIOD_START), // 02-23
+            endDate = DateUtils.toJulianDay(LAST_PERIOD_END)      // 02-27
         ))
         repository.addPeriod(PeriodRecord(
-            pk = "5",
+            pk = "2",
             startDate = DateUtils.toJulianDay(LocalDate(2025, 3, 24)), // 1차 휴약기에 생리
             endDate = DateUtils.toJulianDay(LocalDate(2025, 3, 28))
         ))
@@ -407,8 +401,8 @@ class WithPillTest {
             restPill = DEFAULT_REST_DAYS
         ))
 
-        // 1차 패키지: 03-01 (Period 4 이후)
-        // 2차 패키지: 03-29 (Period 5 이후, 다음 예정일 04-21 기준 23일 전 = 5일 규칙 만족)
+        // 1차 패키지: 03-01 (첫 생리 이후)
+        // 2차 패키지: 03-29 (두 번째 생리 이후, 예정일 04-21 기준 23일 전 = 5일 규칙 만족)
         repository.addPillPackage(PillPackage(
             packageStart = DateUtils.toJulianDay(PILL_START), // 03-01
             pillCount = DEFAULT_PILL_COUNT,
@@ -431,17 +425,17 @@ class WithPillTest {
             today = DateUtils.toJulianDay(today)
         )
 
-        val cycle5 = cycles.find { it.pk == "5" }!!
+        val cycle = cycles.find { it.pk == "2" }!!
 
         // 2차 예정일: 03-29 + 21 + 2 = 04-21
-        assertEquals(1, cycle5.predictDays.size, "예정일 1개")
+        assertEquals(1, cycle.predictDays.size, "예정일 1개")
         assertEquals(
             DateUtils.toJulianDay(LocalDate(2025, 4, 21)),
-            cycle5.predictDays[0].startDate,
+            cycle.predictDays[0].startDate,
             "2차 예정일: 04-21"
         )
-        assertEquals(0, cycle5.ovulationDays.size, "배란기 없음 (5일 규칙 만족)")
-        assertEquals(0, cycle5.fertileDays.size, "가임기 없음 (5일 규칙 만족)")
+        assertEquals(0, cycle.ovulationDays.size, "배란기 없음 (5일 규칙 만족)")
+        assertEquals(0, cycle.fertileDays.size, "가임기 없음 (5일 규칙 만족)")
     }
 
     /**
@@ -454,7 +448,7 @@ class WithPillTest {
 
         // 생리 기록
         repository.addPeriod(PeriodRecord(
-            pk = "5",
+            pk = "1",
             startDate = DateUtils.toJulianDay(LocalDate(2025, 3, 24)),
             endDate = DateUtils.toJulianDay(LocalDate(2025, 3, 28))
         ))
