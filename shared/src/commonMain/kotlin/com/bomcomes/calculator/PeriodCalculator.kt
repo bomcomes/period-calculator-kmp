@@ -143,9 +143,9 @@ object PeriodCalculator {
 
         val cycles = mutableListOf<CycleInfo>()
 
-        // 통합 로직: 모든 period에 대해 cycle 생성
-        if (sortedPeriods.size >= 2) {
-            // 각 period에 대해 cycle 생성
+        // 통합 로직: 모든 period에 대해 cycle 생성 (1개 이상)
+        if (sortedPeriods.size >= 1) {
+            // 각 period에 대해 cycle 생성 (1개일 때도 동일 로직으로 처리)
             for (i in sortedPeriods.indices) {
                 val currentPeriod = sortedPeriods[i]
                 val nextPeriod = sortedPeriods.getOrNull(i + 1)
@@ -181,20 +181,6 @@ object PeriodCalculator {
                 cycles.add(cycle)
             }
 
-        } else if (sortedPeriods.size == 1) {
-            // 생리가 1개만 있으면 평균 주기로 예측
-            val singlePeriod = sortedPeriods.first()
-            val cycle = setupResult(
-                input = input,
-                periodRecord = singlePeriod,
-                nextPeriod = null,
-                fromDate = fromDate,
-                toDate = toDate,
-                today = actualToday,
-                period = averageCycle,
-                isThePill = isOnPill
-            )
-            cycles.add(cycle)
         } else {
             // 생리가 0개면 기본 배란기 정보 제공 (첫 사용자)
             val ovulationCycle = setupOvulation(
