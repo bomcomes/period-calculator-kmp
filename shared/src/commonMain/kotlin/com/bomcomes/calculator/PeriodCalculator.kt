@@ -143,19 +143,28 @@ object PeriodCalculator {
 
         val cycles = mutableListOf<CycleInfo>()
 
-        // iOS 패턴: 연속된 생리 쌍에 대해서만 주기 계산
+        // 통합 로직: 모든 period에 대해 cycle 생성
         if (sortedPeriods.size >= 2) {
-            // 마지막 제외하고 연속된 쌍 계산
-            for (i in 0 until sortedPeriods.size - 1) {
+            // 각 period에 대해 cycle 생성
+            for (i in sortedPeriods.indices) {
                 val currentPeriod = sortedPeriods[i]
-                val nextPeriod = sortedPeriods[i + 1]
+                val nextPeriod = sortedPeriods.getOrNull(i + 1)
 
-                // 실제 주기 계산
-                val actualPeriod = (nextPeriod.startDate - currentPeriod.startDate).toInt()
+                // 주기 길이 계산: 다음 period 있으면 실제 간격, 없으면 평균
+                val periodLength = if (nextPeriod != null) {
+                    (nextPeriod.startDate - currentPeriod.startDate).toInt()
+                } else {
+                    averageCycle
+                }
 
-                // 이 주기의 계산 범위: 현재 생리 시작 ~ 다음 생리 시작 전날
-                // 배란기/가임기는 이 범위 내에서만 계산
-                val cycleEndDate = nextPeriod.startDate - 1
+                // 이 주기의 계산 범위
+                // - 다음 period 있으면: 현재 ~ 다음 period 시작 전날
+                // - 다음 period 없으면: 현재 ~ toDate
+                val cycleEndDate = if (nextPeriod != null) {
+                    nextPeriod.startDate - 1
+                } else {
+                    toDate
+                }
                 val cycleToDate = if (cycleEndDate < toDate) cycleEndDate else toDate
 
                 val cycle = setupResult(
@@ -165,27 +174,10 @@ object PeriodCalculator {
                     fromDate = fromDate,
                     toDate = cycleToDate,
                     today = actualToday,
-                    period = actualPeriod,
+                    period = periodLength,
                     isThePill = isOnPill
                 )
 
-                cycles.add(cycle)
-            }
-
-            // 생리가 정확히 2개면 마지막 것도 추가 (평균 주기 사용)
-            if (sortedPeriods.size == 2) {
-                val lastPeriod = sortedPeriods.last()
-
-                val cycle = setupResult(
-                    input = input,
-                    periodRecord = lastPeriod,
-                    nextPeriod = null,
-                    fromDate = fromDate,
-                    toDate = toDate,
-                    today = actualToday,
-                    period = averageCycle,
-                    isThePill = isOnPill
-                )
                 cycles.add(cycle)
             }
 
