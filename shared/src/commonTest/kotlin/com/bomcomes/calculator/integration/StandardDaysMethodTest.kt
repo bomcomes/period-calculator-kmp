@@ -9,7 +9,7 @@ import kotlinx.datetime.LocalDate
 import kotlin.test.*
 
 /**
- * 표준일 피임법 검증 테스트 (10개)
+ * 표준일 피임법 검증 테스트 (11개)
  *
  * 문서 참조: test-cases/docs/01-standard-days-method.md
  *
@@ -822,11 +822,153 @@ class StandardDaysMethodTest {
     }
 
     /**
-     * TC-01-09: 생리 지연 1-7일 (예정일 뒤로 미룸)
+     * TC-01-09: 생리 기간 경계 조회
+     * 조회 기간이 마지막 생리 기간을 제외한 여러 생리 기간을 포함하고 있을때 검증
+     */
+    @Test
+    fun testTC_01_09_partialPeriodQuery() = runTest {
+        val repository = InMemoryPeriodRepository()
+        setupCommonData(repository)
+
+        val fromDate = LocalDate(2025, 1, 1)
+        val toDate = LocalDate(2025, 2, 28)
+        val today = DEFAULT_TODAY
+
+        val cycles = PeriodCalculator.calculateCycleInfo(
+            repository = repository,
+            fromDate = DateUtils.toJulianDay(fromDate),
+            toDate = DateUtils.toJulianDay(toDate),
+            today = DateUtils.toJulianDay(today)
+        )
+
+        assertEquals(3, cycles.size, "주기 개수: 3개")
+
+        // 주기 1 (pk=1)
+        val cycle1 = cycles[0]
+        assertEquals("1", cycle1.pk)
+        assertEquals(
+            DateUtils.toJulianDay(PERIOD_1_START),
+            cycle1.actualPeriod?.startDate,
+            "주기1 실제 생리 시작"
+        )
+        assertEquals(
+            DateUtils.toJulianDay(PERIOD_1_END),
+            cycle1.actualPeriod?.endDate,
+            "주기1 실제 생리 종료"
+        )
+        assertEquals(0, cycle1.delayTheDays, "주기1 지연 일수: 0")
+        assertNull(cycle1.delayDay, "주기1 지연 기간: null")
+        assertEquals(0, cycle1.predictDays.size, "주기1 생리 예정일들: []")
+
+        // 주기 1 가임기: 2025-01-08 ~ 2025-01-19
+        assertEquals(1, cycle1.fertileDays.size, "주기1 가임기 1개")
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 1, 8)),
+            cycle1.fertileDays[0].startDate,
+            "주기1 가임기 시작"
+        )
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 1, 19)),
+            cycle1.fertileDays[0].endDate,
+            "주기1 가임기 종료"
+        )
+
+        // 주기 1 배란기: 2025-01-13 ~ 2025-01-15
+        assertEquals(1, cycle1.ovulationDays.size, "주기1 배란기 1개")
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 1, 13)),
+            cycle1.ovulationDays[0].startDate,
+            "주기1 배란기 시작"
+        )
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 1, 15)),
+            cycle1.ovulationDays[0].endDate,
+            "주기1 배란기 종료"
+        )
+
+        assertEquals(31, cycle1.period, "주기1 주기: 31일")
+        assertFalse(cycle1.isOvulationPeriodUserInput, "주기1 배란일 사용자 입력: false")
+        assertNull(cycle1.thePillPeriod, "주기1 피임약 기준 주기: null")
+        assertNull(cycle1.restPill, "주기1 남은 휴약일: null")
+
+        // 주기 2 (pk=2)
+        val cycle2 = cycles[1]
+        assertEquals("2", cycle2.pk)
+        assertEquals(
+            DateUtils.toJulianDay(PERIOD_2_START),
+            cycle2.actualPeriod?.startDate,
+            "주기2 실제 생리 시작"
+        )
+        assertEquals(
+            DateUtils.toJulianDay(PERIOD_2_END),
+            cycle2.actualPeriod?.endDate,
+            "주기2 실제 생리 종료"
+        )
+        assertEquals(0, cycle2.delayTheDays, "주기2 지연 일수: 0")
+        assertNull(cycle2.delayDay, "주기2 지연 기간: null")
+        assertEquals(0, cycle2.predictDays.size, "주기2 생리 예정일들: [] (조회 범위가 Period 3 이전에 종료)")
+
+        // 주기 2 가임기: 2025-02-08 ~ 2025-02-19
+        assertEquals(1, cycle2.fertileDays.size, "주기2 가임기 1개")
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 2, 8)),
+            cycle2.fertileDays[0].startDate,
+            "주기2 가임기 시작"
+        )
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 2, 19)),
+            cycle2.fertileDays[0].endDate,
+            "주기2 가임기 종료"
+        )
+
+        // 주기 2 배란기: 2025-02-13 ~ 2025-02-15
+        assertEquals(1, cycle2.ovulationDays.size, "주기2 배란기 1개")
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 2, 13)),
+            cycle2.ovulationDays[0].startDate,
+            "주기2 배란기 시작"
+        )
+        assertEquals(
+            DateUtils.toJulianDay(LocalDate(2025, 2, 15)),
+            cycle2.ovulationDays[0].endDate,
+            "주기2 배란기 종료"
+        )
+
+        assertEquals(28, cycle2.period, "주기2 주기: 28일")
+        assertFalse(cycle2.isOvulationPeriodUserInput, "주기2 배란일 사용자 입력: false")
+        assertNull(cycle2.thePillPeriod, "주기2 피임약 기준 주기: null")
+        assertNull(cycle2.restPill, "주기2 남은 휴약일: null")
+
+        // 주기 3 (pk=3)
+        val cycle3 = cycles[2]
+        assertEquals("3", cycle3.pk)
+        assertEquals(
+            DateUtils.toJulianDay(PERIOD_3_START),
+            cycle3.actualPeriod?.startDate,
+            "주기3 실제 생리 시작"
+        )
+        assertEquals(
+            DateUtils.toJulianDay(PERIOD_3_END),
+            cycle3.actualPeriod?.endDate,
+            "주기3 실제 생리 종료"
+        )
+        assertEquals(0, cycle3.delayTheDays, "주기3 지연 일수: 0")
+        assertNull(cycle3.delayDay, "주기3 지연 기간: null")
+        assertEquals(0, cycle3.predictDays.size, "주기3 생리 예정일들: [] (조회 범위 밖)")
+        assertEquals(0, cycle3.fertileDays.size, "주기3 가임기들: [] (조회 범위 밖)")
+        assertEquals(0, cycle3.ovulationDays.size, "주기3 배란기들: [] (조회 범위 밖)")
+        assertEquals(30, cycle3.period, "주기3 주기: 30일")
+        assertFalse(cycle3.isOvulationPeriodUserInput, "주기3 배란일 사용자 입력: false")
+        assertNull(cycle3.thePillPeriod, "주기3 피임약 기준 주기: null")
+        assertNull(cycle3.restPill, "주기3 남은 휴약일: null")
+    }
+
+    /**
+     * TC-01-10: 생리 지연 1-7일 (예정일 뒤로 미룸)
      * 생리 예정일이 지나고 1-7일 지연되었을 때 지연 기간이 표시되고, 다음 예정일이 지연 다음날부터 시작하는지 검증
      */
     @Test
-    fun testTC_01_09_delay1to7Days() = runTest {
+    fun testTC_01_10_delay1to7Days() = runTest {
         val repository = InMemoryPeriodRepository()
         setupCommonData(repository)
 
@@ -892,11 +1034,11 @@ class StandardDaysMethodTest {
     }
 
     /**
-     * TC-01-10: 생리 지연 8일 이상 (예정일 표시 안 함, 병원 권장)
+     * TC-01-11: 생리 지연 8일 이상 (예정일 표시 안 함, 병원 권장)
      * 생리 예정일이 지나고 8일 이상 지연되었을 때 예정일과 지연 기간을 표시하지 않는지 검증 (병원 진료 권장 상태)
      */
     @Test
-    fun testTC_01_10_delay8DaysOrMore() = runTest {
+    fun testTC_01_11_delay8DaysOrMore() = runTest {
         val repository = InMemoryPeriodRepository()
         setupCommonData(repository)
 
