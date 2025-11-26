@@ -163,7 +163,8 @@ data class CycleInput(
     val userOvulationDays: List<OvulationDay> = emptyList(), // 사용자 직접 입력 배란일 (특정 날짜들)
     val pillPackages: List<PillPackage> = emptyList(),    // 피임약 패키지들
     val pillSettings: PillSettings = PillSettings(),       // 피임약 설정
-    val pregnancy: PregnancyInfo? = null                   // 임신 정보
+    val pregnancy: PregnancyInfo? = null,                  // 임신 정보
+    val lastPeriodNext: PeriodRecord? = null               // 마지막 생리의 다음 생리 (주기 계산용)
 )
 
 /**

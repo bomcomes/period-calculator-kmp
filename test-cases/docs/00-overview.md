@@ -13,7 +13,7 @@
 
 ## 📁 파일 구조 및 테스트 케이스
 
-### [01-basic-regular-cycle.md](./01-basic-regular-cycle.md) - 기본 규칙적인 28일 주기
+### [01-basic-regular-cycle.md](01-standard-days-method.md) - 기본 규칙적인 28일 주기
 **공통 입력 조건**: 28일 주기, 3개월 생리 기록
 
 **그룹 1: 마지막 생리 이후 (Period 3)**
@@ -43,7 +43,7 @@
 
 ---
 
-### [02-short-cycle.md](./02-short-cycle.md) - 짧은 주기 (25일)
+### [02-short-cycle.md](02-variable-cycle.md) - 짧은 주기 (25일)
 **공통 입력 조건**: 25일 주기, 3개월 생리 기록
 
 **그룹 1: 마지막 생리 이후 (Period 3)**

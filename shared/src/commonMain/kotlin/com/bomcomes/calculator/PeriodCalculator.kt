@@ -44,45 +44,23 @@ object PeriodCalculator {
         val excludeBeforeDate = pregnancy?.dueDate
         val excludeAfterDate = pregnancy?.startsDate
 
-        // Repository에서 범위 내 생리 가져오기
+        // Repository에서 범위 내 생리 가져오기 (응답 대상)
         val periodsInRange = repository.getPeriods(fromDate, toDate).toMutableList()
 
-        // iOS 패턴: 조건부로 이전/다음 생리 추가
-        if (periodsInRange.isNotEmpty()) {
-            val firstPeriod = periodsInRange.first()
-            val lastPeriod = periodsInRange.last()
+        // 이전 생리 추가 로직 (범위 시작 전 생리가 필요한 경우)
+        // - 범위 내 생리가 없을 때: 주변 생리로 정보 제공
+        // - 범위 시작이 첫 생리보다 이전일 때: 해당 기간의 주기 정보 제공
+        val firstPeriod = periodsInRange.firstOrNull()
+        if (firstPeriod == null || fromDate < firstPeriod.startDate) {
+            val beforeDate = firstPeriod?.let { it.startDate - 1 } ?: fromDate
+            repository.getLastPeriodBefore(beforeDate, excludeBeforeDate)
+                ?.let { periodsInRange.add(0, it) }
+        }
 
-            // fromDate가 첫 번째 생리보다 이전이거나 같으면 이전 생리 추가
-            // (첫 번째 생리의 이전 주기 정보도 필요)
-            if (fromDate < firstPeriod.startDate) {
-                val previousPeriod = repository.getLastPeriodBefore(firstPeriod.startDate - 1, excludeBeforeDate)
-                if (previousPeriod != null && previousPeriod.startDate != firstPeriod.startDate) {
-                    periodsInRange.add(0, previousPeriod)
-                }
-            }
-
-            // toDate가 마지막 생리보다 이후면 다음 생리 추가
-            if (toDate > lastPeriod.endDate) {
-                val nextPeriod = repository.getFirstPeriodAfter(toDate, excludeAfterDate)
-                if (nextPeriod != null) {
-                    periodsInRange.add(nextPeriod)
-                }
-            }
-        } else {
-            // 범위 내 생리가 없을 때
-            val previousPeriod = repository.getLastPeriodBefore(fromDate, excludeBeforeDate)
-
-            // 이전 생리가 있을 때만 처리 (주기 계산 기준이 필요)
-            if (previousPeriod != null) {
-                periodsInRange.add(previousPeriod)
-
-                // 이전 생리가 있을 때만 이후 생리도 가져오기
-                val nextPeriod = repository.getFirstPeriodAfter(toDate, excludeAfterDate)
-                if (nextPeriod != null) {
-                    periodsInRange.add(nextPeriod)
-                }
-            }
-            // 이전 생리가 없으면 이후 생리도 가져오지 않음 (범위에 표시할 주기 정보가 없음)
+        // 마지막 생리의 다음 생리만 가져오기 (주기 길이 계산용)
+        // periodsInRange 내부의 생리들은 서로가 next이므로, 마지막 생리의 next만 필요
+        val lastPeriodNext = periodsInRange.lastOrNull()?.let { lastPeriod ->
+            repository.getFirstPeriodAfter(lastPeriod.endDate + 1, excludeAfterDate)
         }
 
         val periodSettings = repository.getPeriodSettings()
@@ -107,11 +85,11 @@ object PeriodCalculator {
             userOvulationDays = userOvulationDays,
             pillPackages = pillPackages,
             pillSettings = pillSettings,
-            pregnancy = pregnancy
+            pregnancy = pregnancy,
+            lastPeriodNext = lastPeriodNext
         )
 
         // 계산 로직 호출 및 반환
-        // 필터링은 이미 CycleCalculator에서 수행되므로 모두 반환
         return calculateCycleInfo(input, fromDate, toDate, today)
     }
 
@@ -148,7 +126,10 @@ object PeriodCalculator {
             // 각 period에 대해 cycle 생성 (1개일 때도 동일 로직으로 처리)
             for (i in sortedPeriods.indices) {
                 val currentPeriod = sortedPeriods[i]
+
+                // 다음 생리: 리스트 내에서 찾고, 마지막이면 lastPeriodNext 사용
                 val nextPeriod = sortedPeriods.getOrNull(i + 1)
+                    ?: if (i == sortedPeriods.lastIndex) input.lastPeriodNext else null
 
                 // 주기 길이 계산: 다음 period 있으면 실제 간격, 없으면 평균
                 val periodLength = if (nextPeriod != null) {
