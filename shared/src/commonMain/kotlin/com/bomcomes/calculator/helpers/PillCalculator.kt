@@ -76,7 +76,7 @@ internal object PillCalculator {
         if (pillPackages.isEmpty()) return false
 
         for (pillPackage in pillPackages) {
-            val packageEnd = pillPackage.packageStart + pillPackage.pillCount - 1
+            val packageEnd = pillPackage.packageStart + pillSettings.pillCount - 1
             if (date >= pillPackage.packageStart && date <= packageEnd) {
                 return true
             }

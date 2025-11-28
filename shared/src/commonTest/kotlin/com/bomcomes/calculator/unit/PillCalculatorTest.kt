@@ -35,9 +35,7 @@ class PillCalculatorTest {
 
         val pillPackages = listOf(
             PillPackage(
-                packageStart = jan28,
-                pillCount = 21,
-                restDays = 7
+                packageStart = jan28
             )
         )
 
@@ -59,9 +57,7 @@ class PillCalculatorTest {
 
         val pillPackages = listOf(
             PillPackage(
-                packageStart = jan15,
-                pillCount = 21,
-                restDays = 7
+                packageStart = jan15
             )
         )
 
@@ -97,9 +93,7 @@ class PillCalculatorTest {
 
         val pillPackages = listOf(
             PillPackage(
-                packageStart = feb10, // 정상 예정일 이후
-                pillCount = 21,
-                restDays = 7
+                packageStart = feb10 // 정상 예정일 이후
             )
         )
 
@@ -123,14 +117,10 @@ class PillCalculatorTest {
 
         val pillPackages = listOf(
             PillPackage(
-                packageStart = jan10,
-                pillCount = 21,
-                restDays = 7
+                packageStart = jan10
             ),
             PillPackage(
-                packageStart = feb7,
-                pillCount = 21,
-                restDays = 7
+                packageStart = feb7
             )
         )
 
@@ -153,9 +143,7 @@ class PillCalculatorTest {
 
         val pillPackages = listOf(
             PillPackage(
-                packageStart = jan10,
-                pillCount = 21,
-                restDays = 7
+                packageStart = jan10
             )
         )
 
@@ -190,9 +178,7 @@ class PillCalculatorTest {
 
         val pillPackages = listOf(
             PillPackage(
-                packageStart = jan10, // 1/10 ~ 1/30 (21일)
-                pillCount = 21,
-                restDays = 7
+                packageStart = jan10 // 1/10 ~ 1/30 (21일)
             )
         )
 
@@ -213,9 +199,7 @@ class PillCalculatorTest {
 
         val pillPackages = listOf(
             PillPackage(
-                packageStart = jan10, // 1/10 ~ 1/30 (21일)
-                pillCount = 21,
-                restDays = 7
+                packageStart = jan10 // 1/10 ~ 1/30 (21일)
             )
         )
 
@@ -236,9 +220,7 @@ class PillCalculatorTest {
 
         val pillPackages = listOf(
             PillPackage(
-                packageStart = jan10,
-                pillCount = 21,
-                restDays = 7
+                packageStart = jan10
             )
         )
 

@@ -376,12 +376,16 @@ object PeriodCalculator {
             (isThePill && input.pillSettings.restPill == 0)
 
         // 피임약 주기 (thePillPeriod) - 연속 복용(restPill == 0)이면 null
+        // 5일 규칙 불만족 시에도 null
+        // 다음 생리 기록이 있으면 null (실제 기록 기준이므로 예측 불필요)
         val thePillPeriod = if (isThePill && input.pillSettings.isCalculatingWithPill) {
             if (input.pillSettings.restPill == 0) {
                 null  // 연속 복용 시 thePillPeriod 없음 (예정일/지연 없음)
+            } else if (nextPeriod != null) {
+                null  // 다음 생리 기록 있음: 예측 불필요
             } else {
+                // 5일 규칙 만족 시에만 thePillPeriod 계산
                 pillBasedDate?.let { (it - periodRecord.startDate).toInt() }
-                    ?: (input.pillSettings.pillCount + input.pillSettings.restPill)
             }
         } else {
             null
@@ -468,11 +472,29 @@ object PeriodCalculator {
             )
         }
 
-        // 현재 남은 휴약일 계산
-        val restPillDays = if (isThePill && input.pillSettings.isCalculatingWithPill) {
-            calculateRestPillDays(today, input.pillPackages, input.pillSettings)
+        // 연속 복용 여부 (iOS 방식: 휴약기 0일이고 피임약 패키지가 있을 때만 true)
+        val isContinuousPillUsage = isThePill &&
+            input.pillSettings.isCalculatingWithPill &&
+            input.pillSettings.restPill == 0 &&
+            input.pillPackages.isNotEmpty()
+
+        // 피임약 복용 시 주기 계산
+        // - 연속 복용(휴약기 0일): 일반 평균 주기 유지 (예측 불가이지만 과거 주기 정보 보존)
+        // - 5일 규칙 만족 AND 다음 생리 기록 없음: 피임약 주기(28) 사용 (예측)
+        // - 다음 생리 기록 있음: 실제 거리 사용 (기록된 자연 주기)
+        val finalPeriod = if (isThePill && input.pillSettings.isCalculatingWithPill) {
+            if (isContinuousPillUsage) {
+                // 연속 복용: 일반 평균 주기 유지
+                period
+            } else if (pillBasedDate != null && nextPeriod == null) {
+                // 5일 규칙 만족 AND 다음 생리 기록 없음: 피임약 주기 사용
+                input.pillSettings.pillCount + input.pillSettings.restPill
+            } else {
+                // 다음 생리 기록 있음: 실제 거리 사용
+                period
+            }
         } else {
-            null
+            period
         }
 
         return CycleInfo(
@@ -483,15 +505,17 @@ object PeriodCalculator {
             fertileDays = fertileDays,
             delayDay = delayPeriod,
             delayTheDays = filteredDelayDays,
-            period = period,
+            period = finalPeriod,
             thePillPeriod = thePillPeriod,
-            restPill = restPillDays
+            isContinuousPillUsage = isContinuousPillUsage
         )
     }
 
     /**
      * 남은 휴약일 계산
+     * (현재 미사용 - 향후 필요 시 활용)
      */
+    @Suppress("unused")
     private fun calculateRestPillDays(
         today: Double,
         pillPackages: List<PillPackage>,
@@ -502,16 +526,16 @@ object PeriodCalculator {
         // 현재 날짜가 속한 피임약 패키지 찾기
         for (pillPackage in pillPackages) {
             val packageStart = pillPackage.packageStart
-            val packageEnd = packageStart + pillPackage.pillCount + pillPackage.restDays - 1
+            val packageEnd = packageStart + pillSettings.pillCount + pillSettings.restPill - 1
 
             if (today >= packageStart && today <= packageEnd) {
                 // 현재 날짜가 이 패키지 내에 있음
                 val dayInPackage = (today - packageStart).toInt() + 1
 
-                if (dayInPackage > pillPackage.pillCount) {
+                if (dayInPackage > pillSettings.pillCount) {
                     // 휴약 기간
-                    val restDayNumber = dayInPackage - pillPackage.pillCount
-                    return pillPackage.restDays - restDayNumber + 1
+                    val restDayNumber = dayInPackage - pillSettings.pillCount
+                    return pillSettings.restPill - restDayNumber + 1
                 } else {
                     // 복용 기간
                     return 0

@@ -44,16 +44,14 @@ data class OvulationDay(
 
 /**
  * 피임약 패키지 정보
+ *
+ * 복용일/휴약일 정보는 PillSettings에서 관리
+ * (iOS와 동일한 구조)
  */
 @JsExport
 data class PillPackage(
-    val packageStart: Double,  // julianDay
-    val pillCount: Int = 21,
-    val restDays: Int = 7
-) {
-    val totalDays: Int
-        get() = pillCount + restDays
-}
+    val packageStart: Double  // julianDay
+)
 
 /**
  * 피임약 설정
@@ -184,7 +182,7 @@ data class CycleInfo(
     val ovulationDayPeriod: Int? = null,                   // 배란일 기준 주기
     val isOvulationPeriodUserInput: Boolean = false,       // 배란일 사용자 입력 여부
     val pregnancyStartDate: Double? = null,                // 임신 시작일 (julianDay)
-    val restPill: Int? = null                              // 남은 휴약일
+    val isContinuousPillUsage: Boolean = false             // 연속 복용 여부 (휴약기 0일)
 ) {
     // 하위 호환성을 위한 alias
     @Deprecated("Use fertileDays instead", ReplaceWith("fertileDays"))
