@@ -23,18 +23,24 @@
 
 ```
 period-calculator-kmp/
-├── README.md                    # 프로젝트 메인 문서
-├── docs/                        # 문서 파일
-├── tests/                       # 테스트 파일
-│   └── test-scenario.js        # 시나리오 테스트
-├── shared/                      # KMP 공유 코드
+├── README.md                              # 프로젝트 메인 문서
+├── docs/                                  # 문서 파일
+├── test-cases/docs/                       # 테스트 케이스 문서
+├── tests/                                 # TypeScript 통합 테스트
+│   ├── StandardDays26To32Test.ts         # 표준일 피임법 테스트
+│   ├── package.json
+│   └── tsconfig.json
+├── shared/                                # KMP 공유 코드
 │   └── src/
 │       ├── commonMain/kotlin/
-│       │   ├── PeriodCalculator.kt     # 메인 계산 로직
-│       │   ├── PregnancyCalculator.kt  # 임신 계산
-│       │   └── models/Models.kt        # 데이터 모델
-│       └── jsMain/kotlin/
-│           └── JsExports.kt            # JavaScript exports
+│       │   ├── PeriodCalculator.kt       # 메인 계산 로직
+│       │   ├── PregnancyCalculator.kt    # 임신 계산
+│       │   ├── models/Models.kt          # 데이터 모델
+│       │   └── utils/DateUtils.kt        # 날짜 유틸리티
+│       ├── jsMain/kotlin/
+│       │   ├── JsExports.kt              # JavaScript exports
+│       │   └── utils/DateUtils.kt        # JS용 날짜 변환
+│       └── commonTest/kotlin/            # Kotlin 단위 테스트
 └── build.gradle.kts
 ```
 
@@ -56,74 +62,122 @@ shared/build/dist/js/productionLibrary/
 
 ## 사용 예시
 
-### JavaScript/TypeScript
+### JavaScript/TypeScript (Firebase Functions)
 
 ```javascript
-const lib = require('./shared/build/dist/js/productionLibrary/period-calculator-kmp-shared.js');
-const calculator = lib.com.bomcomes.calculator;
+const kmp = require('./shared/build/dist/js/productionLibrary/period-calculator-kmp-shared');
+const {
+  calculateCycleInfo,
+  getDayStatus,
+  stringToJulianDay,
+  julianDayToString,
+  JsPeriodRecord,
+  getLibraryVersion
+} = kmp.com.bomcomes.calculator;
 
-// 생리 기록
+// 라이브러리 버전 확인
+console.log(getLibraryVersion()); // "period-calculator-kmp v1.0.0 (build 597)"
+
+// 생리 기록 (Firebase에서 가져온 데이터)
 const periods = [
-    { startDate: '2025-11-01', endDate: '2025-11-05' }
+  new JsPeriodRecord(
+    "1",                              // pk
+    stringToJulianDay("2025-01-01"), // startDate (julianDay)
+    stringToJulianDay("2025-01-05")  // endDate (julianDay)
+  ),
+  new JsPeriodRecord(
+    "2",
+    stringToJulianDay("2025-02-01"),
+    stringToJulianDay("2025-02-05")
+  ),
+  new JsPeriodRecord(
+    "3",
+    stringToJulianDay("2025-03-01"),
+    stringToJulianDay("2025-03-05")
+  )
 ];
 
-// 생리 주기 계산
-const cycles = calculator.calculateMenstrualCycles(
-    periods,
-    '2025-11-01',  // fromDate
-    '2025-12-31',  // toDate
-    31,            // averageCycle
-    5              // periodDays
+// 주기 정보 계산
+const cycles = calculateCycleInfo(
+  periods,
+  stringToJulianDay("2025-03-01"),  // fromDate
+  stringToJulianDay("2025-03-31"),  // toDate
+  stringToJulianDay("2025-03-15"),  // today
+  30,  // averageCycle
+  5    // periodDays
 );
 
+// 결과 확인
 const cycle = cycles[0];
-console.log('생리 기간:', cycle.theDay);
-console.log('생리 예정일:', cycle.predictDays[0]);
-console.log('배란기:', cycle.ovulationDays[0]);
-console.log('가임기:', cycle.childbearingAges[0]);
+console.log('pk:', cycle.pk);
+console.log('실제 생리:', julianDayToString(cycle.actualPeriod.startDate), '~', julianDayToString(cycle.actualPeriod.endDate));
+console.log('생리 예정일:', cycle.predictDays.map(d => `${julianDayToString(d.startDate)}~${julianDayToString(d.endDate)}`));
+console.log('배란기:', cycle.ovulationDays.map(d => `${julianDayToString(d.startDate)}~${julianDayToString(d.endDate)}`));
+console.log('가임기:', cycle.fertileDays.map(d => `${julianDayToString(d.startDate)}~${julianDayToString(d.endDate)}`));
+console.log('지연 일수:', cycle.delayDays);
 
 // 특정 날짜의 상태 확인
-const status = calculator.calculateCalendarStatus(
-    periods,
-    '2025-11-14',  // 확인할 날짜
-    31,            // averageCycle
-    5              // periodDays
+const status = getDayStatus(
+  periods,
+  stringToJulianDay("2025-03-14"),  // targetDate
+  stringToJulianDay("2025-03-15"),  // today
+  30,  // averageCycle
+  5    // periodDays
 );
 
-console.log('상태:', status.calendarType);      // "OVULATION_DAY"
-console.log('임신 가능성:', status.probability); // "HIGH"
-console.log('주기 일차:', status.gap);          // 13
+console.log('날짜:', julianDayToString(status.date));
+console.log('상태:', status.type);  // "OVULATION", "FERTILE", "PERIOD_ONGOING" 등
+console.log('주기 일차:', status.gap);
+console.log('주기:', status.period);
 ```
 
-### Kotlin (Android)
+### Kotlin (Android/JVM)
 
 ```kotlin
 import com.bomcomes.calculator.PeriodCalculator
 import com.bomcomes.calculator.models.*
-import kotlinx.datetime.LocalDate
+import com.bomcomes.calculator.utils.DateUtils
 
-val input = PeriodCycleInput(
-    periods = listOf(
-        PeriodRecord(
-            startDate = LocalDate(2025, 11, 1),
-            endDate = LocalDate(2025, 11, 5)
-        )
+val periods = listOf(
+    PeriodRecord(
+        pk = "1",
+        startDate = DateUtils.toJulianDay(LocalDate(2025, 1, 1)),
+        endDate = DateUtils.toJulianDay(LocalDate(2025, 1, 5))
     ),
-    periodSettings = PeriodSettings(
-        period = 31,
-        days = 5
+    PeriodRecord(
+        pk = "2",
+        startDate = DateUtils.toJulianDay(LocalDate(2025, 2, 1)),
+        endDate = DateUtils.toJulianDay(LocalDate(2025, 2, 5))
+    ),
+    PeriodRecord(
+        pk = "3",
+        startDate = DateUtils.toJulianDay(LocalDate(2025, 3, 1)),
+        endDate = DateUtils.toJulianDay(LocalDate(2025, 3, 5))
     )
 )
 
-val cycles = PeriodCalculator.calculateMenstrualCycles(
-    input,
-    fromDate = LocalDate(2025, 11, 1),
-    toDate = LocalDate(2025, 12, 31)
+val input = CycleInput(
+    periods = periods,
+    periodSettings = PeriodSettings(
+        manualAverageCycle = 30,
+        manualAverageDay = 5,
+        autoAverageCycle = 30,
+        autoAverageDay = 5,
+        isAutoCalc = false
+    )
 )
 
-val status = PeriodCalculator.calculateCalendarStatus(
+val cycles = PeriodCalculator.calculateCycleInfo(
     input,
-    date = LocalDate(2025, 11, 14)
+    fromDate = DateUtils.toJulianDay(LocalDate(2025, 3, 1)),
+    toDate = DateUtils.toJulianDay(LocalDate(2025, 3, 31)),
+    today = DateUtils.toJulianDay(LocalDate(2025, 3, 15))
+)
+
+val status = PeriodCalculator.getDayStatus(
+    input,
+    targetDate = DateUtils.toJulianDay(LocalDate(2025, 3, 14)),
+    today = DateUtils.toJulianDay(LocalDate(2025, 3, 15))
 )
 ```
 
@@ -133,11 +187,11 @@ val status = PeriodCalculator.calculateCalendarStatus(
 # 빌드
 ./gradlew clean :shared:jsNodeProductionLibraryDistribution
 
-# npm 패키지 설치
-cd shared/build/dist/js/productionLibrary && npm install
+# TypeScript 통합 테스트 실행
+cd tests && npx ts-node StandardDays26To32Test.ts
 
-# 테스트 실행
-cd tests && node test-scenario.js
+# Kotlin 단위 테스트 실행
+./gradlew :shared:testDebugUnitTest
 ```
 
 ## 문서
