@@ -140,7 +140,7 @@ class ShortCycleUnder25Test {
         assertEquals(22, cycle1.period)
         assertFalse(cycle1.isOvulationPeriodUserInput)
         assertNull(cycle1.thePillPeriod)
-        assertNull(cycle1.restPill)
+        assertFalse(cycle1.isContinuousPillUsage)
     }
 
     /**
@@ -358,7 +358,7 @@ class ShortCycleUnder25Test {
         assertEquals(18, cycle1.period)
         assertFalse(cycle1.isOvulationPeriodUserInput)
         assertNull(cycle1.thePillPeriod)
-        assertNull(cycle1.restPill)
+        assertFalse(cycle1.isContinuousPillUsage)
     }
 
     /**

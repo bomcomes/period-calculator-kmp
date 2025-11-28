@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./gradlew :shared:testDebugUnitTest:*)",
+      "Bash(./gradlew :shared:jvmTest:*)",
+      "Bash(cat:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\ndocs: Claude Code 작업 가이드 추가\n\ntest-cases/docs/ 디렉토리 수정 금지 규칙 및\n문서 우선 테스트 개발 워크플로우 문서화\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git push:*)",
+      "Bash(./gradlew shared:test:*)",
+      "Bash(./gradlew :shared:test:*)",
+      "Bash(./gradlew:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

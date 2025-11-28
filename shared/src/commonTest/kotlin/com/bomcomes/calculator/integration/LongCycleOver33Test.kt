@@ -146,7 +146,7 @@ class LongCycleOver33Test {
 
         // 피임약 정보 검증
         assertNull(cycle.thePillPeriod, "피임약 기준 주기: null")
-        assertNull(cycle.restPill, "남은 휴약일: null")
+        assertFalse(cycle.isContinuousPillUsage, "남은 휴약일: null")
     }
 
     /**
@@ -317,7 +317,7 @@ class LongCycleOver33Test {
         assertEquals(35, cycle1.period, "주기1 주기: 35일")
         assertFalse(cycle1.isOvulationPeriodUserInput)
         assertNull(cycle1.thePillPeriod)
-        assertNull(cycle1.restPill)
+        assertFalse(cycle1.isContinuousPillUsage)
     }
 
     /**
@@ -419,7 +419,7 @@ class LongCycleOver33Test {
         assertEquals(39, cycle1.period, "주기: 39")
         assertFalse(cycle1.isOvulationPeriodUserInput)
         assertNull(cycle1.thePillPeriod)
-        assertNull(cycle1.restPill)
+        assertFalse(cycle1.isContinuousPillUsage)
     }
 
     /**
@@ -599,7 +599,7 @@ class LongCycleOver33Test {
         assertEquals(39, cycle1.period, "주기1 주기: 39일")
         assertFalse(cycle1.isOvulationPeriodUserInput)
         assertNull(cycle1.thePillPeriod)
-        assertNull(cycle1.restPill)
+        assertFalse(cycle1.isContinuousPillUsage)
 
         // 주기 2 (pk=2)
         val cycle2 = cycles[1]
@@ -641,7 +641,7 @@ class LongCycleOver33Test {
         assertEquals(35, cycle2.period, "주기2 주기: 35일")
         assertFalse(cycle2.isOvulationPeriodUserInput)
         assertNull(cycle2.thePillPeriod)
-        assertNull(cycle2.restPill)
+        assertFalse(cycle2.isContinuousPillUsage)
 
         // 주기 3 (pk=3)
         val cycle3 = cycles[2]
@@ -723,7 +723,7 @@ class LongCycleOver33Test {
         assertEquals(37, cycle3.period, "주기3 주기: 37일")
         assertFalse(cycle3.isOvulationPeriodUserInput)
         assertNull(cycle3.thePillPeriod)
-        assertNull(cycle3.restPill)
+        assertFalse(cycle3.isContinuousPillUsage)
     }
 
     /**
@@ -795,7 +795,7 @@ class LongCycleOver33Test {
         assertEquals(39, cycle1.period, "주기1 주기: 39일")
         assertFalse(cycle1.isOvulationPeriodUserInput, "주기1 배란일 사용자 입력: false")
         assertNull(cycle1.thePillPeriod, "주기1 피임약 기준 주기: null")
-        assertNull(cycle1.restPill, "주기1 남은 휴약일: null")
+        assertFalse(cycle1.isContinuousPillUsage, "주기1 남은 휴약일: null")
 
         // 주기 2 (pk=2)
         val cycle2 = cycles[1]
@@ -843,7 +843,7 @@ class LongCycleOver33Test {
         assertEquals(35, cycle2.period, "주기2 주기: 35일")
         assertFalse(cycle2.isOvulationPeriodUserInput, "주기2 배란일 사용자 입력: false")
         assertNull(cycle2.thePillPeriod, "주기2 피임약 기준 주기: null")
-        assertNull(cycle2.restPill, "주기2 남은 휴약일: null")
+        assertFalse(cycle2.isContinuousPillUsage, "주기2 남은 휴약일: null")
     }
 
     /**
@@ -916,7 +916,7 @@ class LongCycleOver33Test {
         assertEquals(37, cycle.period, "주기: 37일")
         assertFalse(cycle.isOvulationPeriodUserInput)
         assertNull(cycle.thePillPeriod)
-        assertNull(cycle.restPill)
+        assertFalse(cycle.isContinuousPillUsage)
     }
 
     /**
@@ -1003,6 +1003,6 @@ class LongCycleOver33Test {
         assertEquals(37, cycle.period, "주기: 37일")
         assertFalse(cycle.isOvulationPeriodUserInput)
         assertNull(cycle.thePillPeriod)
-        assertNull(cycle.restPill)
+        assertFalse(cycle.isContinuousPillUsage)
     }
 }

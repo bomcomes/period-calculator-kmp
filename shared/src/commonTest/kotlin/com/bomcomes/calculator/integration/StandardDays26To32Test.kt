@@ -165,7 +165,7 @@ class StandardDays26To32Test {
 
         // 피임약 정보 검증
         assertNull(cycle.thePillPeriod, "피임약 기준 주기: null")
-        assertNull(cycle.restPill, "남은 휴약일: null")
+        assertFalse(cycle.isContinuousPillUsage, "남은 휴약일: null")
     }
 
     /**
@@ -324,7 +324,7 @@ class StandardDays26To32Test {
         assertEquals(28, cycle1.period, "주기: 28")
         assertFalse(cycle1.isOvulationPeriodUserInput)
         assertNull(cycle1.thePillPeriod)
-        assertNull(cycle1.restPill)
+        assertFalse(cycle1.isContinuousPillUsage)
     }
 
     /**
@@ -853,7 +853,7 @@ class StandardDays26To32Test {
         assertEquals(31, cycle1.period, "주기1 주기: 31일")
         assertFalse(cycle1.isOvulationPeriodUserInput, "주기1 배란일 사용자 입력: false")
         assertNull(cycle1.thePillPeriod, "주기1 피임약 기준 주기: null")
-        assertNull(cycle1.restPill, "주기1 남은 휴약일: null")
+        assertFalse(cycle1.isContinuousPillUsage, "주기1 남은 휴약일: null")
 
         // 주기 2 (pk=2)
         val cycle2 = cycles[1]
@@ -901,7 +901,7 @@ class StandardDays26To32Test {
         assertEquals(28, cycle2.period, "주기2 주기: 28일")
         assertFalse(cycle2.isOvulationPeriodUserInput, "주기2 배란일 사용자 입력: false")
         assertNull(cycle2.thePillPeriod, "주기2 피임약 기준 주기: null")
-        assertNull(cycle2.restPill, "주기2 남은 휴약일: null")
+        assertFalse(cycle2.isContinuousPillUsage, "주기2 남은 휴약일: null")
     }
 
     /**
