@@ -97,9 +97,7 @@ fun calculateCycleInfoWithRepositoryJs(
             val pillPackageDtos = results[6] as Array<JsPillPackage>
             val pillPackages = pillPackageDtos.map { dto ->
                 PillPackage(
-                    packageStart = dto.packageStart.toDouble(),
-                    pillCount = dto.pillCount,
-                    restDays = dto.restDays
+                    packageStart = dto.packageStart.toDouble()
                 )
             }
 

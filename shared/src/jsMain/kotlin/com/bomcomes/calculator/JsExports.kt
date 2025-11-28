@@ -275,9 +275,7 @@ data class JsOvulationDay(
  * JS용 피임약 패키지
  */
 data class JsPillPackage(
-    val packageStart: Double,  // julianDay
-    val pillCount: Int = 21,
-    val restDays: Int = 7
+    val packageStart: Double  // julianDay
 )
 
 /**
