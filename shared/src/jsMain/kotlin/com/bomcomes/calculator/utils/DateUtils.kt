@@ -1,6 +1,5 @@
 package com.bomcomes.calculator.utils
 
-import com.bomcomes.calculator.dto.DateInput
 import kotlinx.datetime.LocalDate
 import kotlin.js.JsExport
 import kotlin.math.floor
@@ -72,19 +71,6 @@ actual object DateUtils {
 
         // LocalDate.parse() 사용 (kotlinx-datetime 표준 방식)
         return LocalDate.parse(datePart)
-    }
-
-    /**
-     * DateInput을 LocalDate로 변환
-     * 우선순위: localDate > iso8601 > julianDay
-     */
-    fun toLocalDate(dateInput: DateInput): LocalDate {
-        return when {
-            dateInput.localDate != null -> dateInput.localDate
-            dateInput.iso8601 != null -> parseIso8601(dateInput.iso8601)
-            dateInput.julianDay != null -> fromJulianDay(dateInput.julianDay)
-            else -> throw IllegalArgumentException("DateInput must have at least one non-null field")
-        }
     }
 
     /**

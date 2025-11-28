@@ -5,6 +5,12 @@ package com.bomcomes.calculator
 import com.bomcomes.calculator.models.*
 
 /**
+ * Get library version string
+ */
+@JsName("getLibraryVersion")
+fun getLibraryVersion(): String = Version.getVersionString()
+
+/**
  * JavaScript/TypeScript Export
  *
  * 생리 주기 계산을 위한 API
@@ -48,7 +54,44 @@ fun calculateCycleInfoJs(
         )
     )
 
-    val result = PeriodCalculator.calculateCycleInfo(input, fromDate, toDate, today)
+    val allCycles = PeriodCalculator.calculateCycleInfo(input, fromDate, toDate, today)
+
+    // 조회 기간 내에 관련 데이터가 있는 주기만 반환
+    val result = allCycles.filter { cycle ->
+        // actualPeriod이 조회 기간과 겹치는지 확인
+        val hasActualPeriod = cycle.actualPeriod?.let { period ->
+            period.startDate <= toDate && period.endDate >= fromDate
+        } ?: false
+
+        // predictDays가 조회 기간과 겹치는지 확인
+        val hasPredictDays = cycle.predictDays.any { predict ->
+            predict.startDate <= toDate && predict.endDate >= fromDate
+        }
+
+        // fertileDays가 조회 기간과 겹치는지 확인
+        val hasFertileDays = cycle.fertileDays.any { fertile ->
+            fertile.startDate <= toDate && fertile.endDate >= fromDate
+        }
+
+        // ovulationDays가 조회 기간과 겹치는지 확인
+        val hasOvulationDays = cycle.ovulationDays.any { ovulation ->
+            ovulation.startDate <= toDate && ovulation.endDate >= fromDate
+        }
+
+        // delayDay가 조회 기간과 겹치는지 확인
+        val hasDelayDay = cycle.delayDay?.let { delay ->
+            delay.startDate <= toDate && delay.endDate >= fromDate
+        } ?: false
+
+        // actualPeriod이 있고 조회 시작일이 생리 시작일 이후인 경우도 포함
+        // (해당 주기 내의 안전기 등을 조회할 수 있도록)
+        val isWithinCyclePeriod = cycle.actualPeriod?.let { period ->
+            fromDate >= period.startDate && fromDate < period.startDate + cycle.period
+        } ?: false
+
+        // 하나라도 조회 기간과 겹치거나 주기 내에 있으면 포함
+        hasActualPeriod || hasPredictDays || hasFertileDays || hasOvulationDays || hasDelayDay || isWithinCyclePeriod
+    }
 
     return result.map { cycleInfo ->
         val actualPeriodJs = cycleInfo.actualPeriod?.let {

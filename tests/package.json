@@ -1,0 +1,13 @@
+{
+  "name": "period-calculator-kmp-tests",
+  "version": "1.0.0",
+  "description": "Integration tests for period-calculator-kmp library",
+  "scripts": {
+    "test": "ts-node StandardDays26To32Test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0"
+  }
+}
