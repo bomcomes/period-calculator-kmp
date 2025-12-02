@@ -65,9 +65,16 @@ object PeriodCalculator {
 
         val periodSettings = repository.getPeriodSettings()
 
-        // 배란기 데이터는 항상 가져옴 (사용자가 입력했을 수 있음)
-        val ovulationTests = repository.getOvulationTests(fromDate, toDate)
-        val userOvulationDays = repository.getUserOvulationDays(fromDate, toDate)
+        // 배란기 데이터 조회 범위 계산
+        // - 조회 범위가 아닌 주기 범위로 확장 (isOvulationPeriodUserInput 정확한 계산을 위해)
+        // - 첫 생리 시작일부터 마지막 생리의 다음 주기까지
+        val ovulationFromDate = periodsInRange.firstOrNull()?.startDate ?: fromDate
+        val ovulationToDate = lastPeriodNext?.let { it.startDate - 1 }
+            ?: (periodsInRange.lastOrNull()?.let { it.startDate + periodSettings.getAverageCycle() }
+                ?: toDate)
+
+        val ovulationTests = repository.getOvulationTests(ovulationFromDate, ovulationToDate)
+        val userOvulationDays = repository.getUserOvulationDays(ovulationFromDate, ovulationToDate)
 
         // 피임약 설정 확인 후 필요할 때만 패키지 데이터 가져오기
         val pillSettings = repository.getPillSettings()
@@ -391,12 +398,31 @@ object PeriodCalculator {
             null
         }
 
-        // 피임약 사용 시 예정일 시작까지를 기준으로 delay 계산
-        val effectivePeriod = if (thePillPeriod != null) {
-            thePillPeriod
+        // 배란일 기준 주기 (early calculation for effectivePeriod)
+        // 마지막 주기(nextPeriod == null)에서만 계산
+        val cycleEndDate = nextPeriod?.let { it.startDate - 1 } ?: toDate
+        val ovulationDatesInCycleForPeriod = mutableListOf<Double>()
+        input.ovulationTests
+            .filter { it.result == TestResult.POSITIVE && it.date >= periodRecord.startDate && it.date <= cycleEndDate }
+            .forEach { ovulationDatesInCycleForPeriod.add(it.date) }
+        input.userOvulationDays
+            .filter { it.date >= periodRecord.startDate && it.date <= cycleEndDate }
+            .forEach { ovulationDatesInCycleForPeriod.add(it.date) }
+
+        val hasUserOvulationInputInCycle = ovulationDatesInCycleForPeriod.isNotEmpty()
+
+        // 배란일 기준 주기 계산
+        val ovulationDayPeriod = if (hasUserOvulationInputInCycle && !isPillEffective && nextPeriod == null) {
+            val latestOvulationInCycle = ovulationDatesInCycleForPeriod.maxOrNull()
+            latestOvulationInCycle?.let {
+                ((it + 14) - periodRecord.startDate).toInt()
+            }
         } else {
-            period
+            null
         }
+
+        // 예정일 계산 우선순위: 피임약 > 배란일 기준 > 일반 주기
+        val effectivePeriod = thePillPeriod ?: ovulationDayPeriod ?: period
 
         // 지연 일수 계산 (연속 복용 시 지연 없음)
         val delayDays = if (isThePill && input.pillSettings.restPill == 0) {
@@ -507,6 +533,8 @@ object PeriodCalculator {
             delayTheDays = filteredDelayDays,
             period = finalPeriod,
             thePillPeriod = thePillPeriod,
+            ovulationDayPeriod = ovulationDayPeriod,
+            isOvulationPeriodUserInput = hasUserOvulationInputInCycle && !isPillEffective,
             isContinuousPillUsage = isContinuousPillUsage
         )
     }
@@ -591,6 +619,46 @@ object PeriodCalculator {
             }
         }
 
+        // 배란일 기준 예정일 계산 (피임약 다음 우선순위)
+        // iOS 방식: 첫 예정일은 배란일 + 14, 이후 예정일은 평균 주기로 반복
+        val hasUserOvulationInput = input.userOvulationDays.isNotEmpty() ||
+                                    input.ovulationTests.any { it.result == TestResult.POSITIVE }
+
+        if (hasUserOvulationInput && !isThePill) {
+            // 주기 범위 내 가장 최근 배란일 찾기
+            val ovulationDates = mutableListOf<Double>()
+            input.ovulationTests
+                .filter { it.result == TestResult.POSITIVE && it.date >= periodRecord.startDate }
+                .forEach { ovulationDates.add(it.date) }
+            input.userOvulationDays
+                .filter { it.date >= periodRecord.startDate }
+                .forEach { ovulationDates.add(it.date) }
+
+            val latestOvulation = ovulationDates.maxOrNull()
+            if (latestOvulation != null) {
+                // 첫 예정일 기준점: 배란일 + 14
+                val firstPredictStart = latestOvulation + 14
+
+                // 예정일 계산 (첫 예정일 + 이후 예정일 모두 포함)
+                // delayDays가 적용되어 지연 시 예정일이 뒤로 밀림
+                // 참고: lastTheDayStart를 firstPredictStart - period로 설정하여
+                // predictInRange의 필터 조건(startDate > lastTheDayStart + rangeEnd)을
+                // 통과하도록 함 (첫 예정일이 필터링되지 않도록)
+                val predicts = CycleCalculator.predictInRange(
+                    isPredict = true,
+                    lastTheDayStart = firstPredictStart - period,
+                    fromDate = fromDate,
+                    toDate = toDate,
+                    period = period,  // 평균 주기 사용
+                    rangeStart = 0,
+                    rangeEnd = days - 1,
+                    delayTheDays = delayDays
+                )
+
+                return OvulationCalculator.filterByPregnancy(predicts, input.pregnancy)
+            }
+        }
+
         // 일반 예정일 계산
         val predictDays = CycleCalculator.predictInRange(
             isPredict = true,
@@ -608,6 +676,10 @@ object PeriodCalculator {
 
     /**
      * 배란기 계산
+     *
+     * 사용자 입력이 있는 경우:
+     * - 현재 주기: 사용자 입력 기반 (조회 범위 내 사용자 입력만 표시)
+     * - 미래 주기: 주기 기반 (첫 예정일 이후부터)
      */
     private fun calculateOvulationDays(
         input: CycleInput,
@@ -622,16 +694,49 @@ object PeriodCalculator {
                           input.ovulationTests.any { it.result == TestResult.POSITIVE }
 
         if (hasUserInput) {
-            // 사용자 입력 데이터 기반 배란기
-            val combinedDates = OvulationCalculator.combineOvulationDates(
-                ovulationTests = input.ovulationTests,
-                userOvulationDays = input.userOvulationDays,
-                fromDate = fromDate,
-                toDate = toDate
-            )
+            // 현재 주기 내 가장 최근 배란일 찾기 (주기 범위 내: lastPeriodStart ~ toDate)
+            val ovulationDatesInCycle = mutableListOf<Double>()
+            input.ovulationTests
+                .filter { it.result == TestResult.POSITIVE && it.date >= lastPeriodStart && it.date <= toDate }
+                .forEach { ovulationDatesInCycle.add(it.date) }
+            input.userOvulationDays
+                .filter { it.date >= lastPeriodStart && it.date <= toDate }
+                .forEach { ovulationDatesInCycle.add(it.date) }
 
-            val ovulationRanges = OvulationCalculator.prepareOvulationDayRanges(combinedDates)
-            return OvulationCalculator.filterByPregnancy(ovulationRanges, input.pregnancy)
+            val latestOvulation = ovulationDatesInCycle.maxOrNull()
+
+            if (latestOvulation != null) {
+                val results = mutableListOf<DateRange>()
+
+                // 현재 주기: 사용자 입력 기반 배란기 (현재 주기 범위 내)
+                // 다른 주기의 배란일은 제외 (lastPeriodStart ~ toDate 범위만)
+                val combinedDates = OvulationCalculator.combineOvulationDates(
+                    ovulationTests = input.ovulationTests,
+                    userOvulationDays = input.userOvulationDays,
+                    fromDate = maxOf(fromDate, lastPeriodStart),  // 현재 주기 시작일 이후만
+                    toDate = toDate
+                )
+                val userInputOvulation = OvulationCalculator.prepareOvulationDayRanges(combinedDates)
+                results.addAll(userInputOvulation)
+
+                // 미래 주기: 주기 기반 배란기 (첫 예정일 이후)
+                val firstPredictStart = latestOvulation + 14
+                val (ovulStart, ovulEnd) = CycleCalculator.calculateOvulationRange(period)
+
+                val futureCyclesOvulation = CycleCalculator.predictInRange(
+                    isPredict = false,
+                    lastTheDayStart = firstPredictStart,
+                    fromDate = fromDate,
+                    toDate = toDate,
+                    period = period,
+                    rangeStart = ovulStart,
+                    rangeEnd = ovulEnd,
+                    delayTheDays = delayDays
+                )
+                results.addAll(futureCyclesOvulation)
+
+                return OvulationCalculator.filterByPregnancy(results, input.pregnancy)
+            }
         }
 
         // 주기 기반 배란기 계산
@@ -674,6 +779,10 @@ object PeriodCalculator {
 
     /**
      * 가임기 계산
+     *
+     * 사용자 입력이 있는 경우:
+     * - 현재 주기: 사용자 입력 배란일 기준 (배란일 -2 ~ +1, 4일)
+     * - 미래 주기: 주기 기반 (약 12일 범위)
      */
     private fun calculateFertileDays(
         input: CycleInput,
@@ -684,13 +793,57 @@ object PeriodCalculator {
         delayDays: Int,
         ovulationDays: List<DateRange>
     ): List<DateRange> {
-        // 사용자가 배란일을 직접 입력하거나 테스트 양성인 경우만 배란일 기준으로 가임기 계산 (배란일 -2 ~ +1)
+        // 사용자가 배란일을 직접 입력하거나 테스트 양성인 경우
         val hasUserInput = input.userOvulationDays.isNotEmpty() ||
                           input.ovulationTests.any { it.result == TestResult.POSITIVE }
 
-        if (hasUserInput && ovulationDays.isNotEmpty()) {
-            val fertileFromOvulation = OvulationCalculator.calculateFertileWindowFromOvulation(ovulationDays)
-            return OvulationCalculator.filterByPregnancy(fertileFromOvulation, input.pregnancy)
+        if (hasUserInput) {
+            // 현재 주기 내 가장 최근 배란일 찾기 (주기 범위 내: lastPeriodStart ~ toDate)
+            val ovulationDatesInCycle = mutableListOf<Double>()
+            input.ovulationTests
+                .filter { it.result == TestResult.POSITIVE && it.date >= lastPeriodStart && it.date <= toDate }
+                .forEach { ovulationDatesInCycle.add(it.date) }
+            input.userOvulationDays
+                .filter { it.date >= lastPeriodStart && it.date <= toDate }
+                .forEach { ovulationDatesInCycle.add(it.date) }
+
+            val latestOvulation = ovulationDatesInCycle.maxOrNull()
+
+            if (latestOvulation != null) {
+                val results = mutableListOf<DateRange>()
+
+                // 현재 주기: 사용자 입력 배란일 기반 가임기 (배란일 -2 ~ +1)
+                // 다른 주기의 배란일은 제외 (lastPeriodStart ~ toDate 범위만)
+                val combinedDates = OvulationCalculator.combineOvulationDates(
+                    ovulationTests = input.ovulationTests,
+                    userOvulationDays = input.userOvulationDays,
+                    fromDate = maxOf(fromDate, lastPeriodStart),  // 현재 주기 시작일 이후만
+                    toDate = toDate
+                )
+                val userInputOvulation = OvulationCalculator.prepareOvulationDayRanges(combinedDates)
+                if (userInputOvulation.isNotEmpty()) {
+                    val fertileFromUserInput = OvulationCalculator.calculateFertileWindowFromOvulation(userInputOvulation)
+                    results.addAll(fertileFromUserInput)
+                }
+
+                // 미래 주기: 주기 기반 가임기 (첫 예정일 이후)
+                val firstPredictStart = latestOvulation + 14
+                val (fertileStart, fertileEnd) = CycleCalculator.calculateChildbearingAgeRange(period)
+
+                val futureCyclesFertile = CycleCalculator.predictInRange(
+                    isPredict = false,
+                    lastTheDayStart = firstPredictStart,
+                    fromDate = fromDate,
+                    toDate = toDate,
+                    period = period,
+                    rangeStart = fertileStart,
+                    rangeEnd = fertileEnd,
+                    delayTheDays = delayDays
+                )
+                results.addAll(futureCyclesFertile)
+
+                return OvulationCalculator.filterByPregnancy(results, input.pregnancy)
+            }
         }
 
         // 주기 기반 가임기 계산
@@ -787,7 +940,8 @@ object PeriodCalculator {
             fertileDays = filteredChildbearing,
             delayDay = null,
             delayTheDays = 0,
-            period = input.periodSettings.getAverageCycle()
+            period = input.periodSettings.getAverageCycle(),
+            isOvulationPeriodUserInput = true  // 사용자 입력 배란일이 있으므로 true
         )
     }
 }
