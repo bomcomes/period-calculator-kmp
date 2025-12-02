@@ -19,6 +19,8 @@ const {
   julianDayToString,
   JsPeriodRecord,
 } = kmp.com.bomcomes.calculator;
+const { JsRepositoryWrapper } = kmp.com.bomcomes.calculator.repository;
+const { PeriodSettings } = kmp.com.bomcomes.calculator.models;
 
 // ============================================
 // 공통 설정
@@ -426,14 +428,17 @@ async function runTestCase(tc: TestCase): Promise<TestResult> {
     console.log(`  - 주기: ${cycle.period}일`);
   });
 
-  // 실제 결과 계산
-  const cycles = calculateCycleInfo(
-    ALL_PERIODS,
+  // Repository 생성 및 데이터 설정
+  const repository = new JsRepositoryWrapper();
+  ALL_PERIODS.forEach((period: any) => repository.addPeriod(period));
+  repository.setPeriodSettings(new PeriodSettings(30, 5, 28, true, false));
+
+  // 실제 결과 계산 (Repository 패턴 사용)
+  const cycles = await calculateCycleInfo(
+    repository,
     stringToJulianDay(tc.fromDate),
     stringToJulianDay(tc.toDate),
-    stringToJulianDay(tc.today),
-    30,  // averageCycle
-    5    // periodDays
+    stringToJulianDay(tc.today)
   );
 
   // 실제 결과 출력

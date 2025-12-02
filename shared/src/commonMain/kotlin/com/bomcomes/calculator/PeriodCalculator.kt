@@ -94,7 +94,7 @@ object PeriodCalculator {
     }
 
     /**
-     * 주기 정보 계산 (직접 데이터 전달)
+     * 주기 정보 계산 (직접 데이터 전달) - Internal use only
      *
      * @param input 모든 필요한 데이터
      * @param fromDate 검색 시작 날짜 (julianDay)
@@ -102,7 +102,7 @@ object PeriodCalculator {
      * @param today 오늘 날짜 (선택, 없으면 현재 시스템 시간 사용) (julianDay)
      * @return 주기 정보 리스트
      */
-    fun calculateCycleInfo(
+    internal fun calculateCycleInfo(
         input: CycleInput,
         fromDate: Double,
         toDate: Double,
