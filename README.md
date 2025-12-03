@@ -75,10 +75,6 @@ period-calculator-kmp/
 ├── README.md                              # 프로젝트 메인 문서
 ├── docs/                                  # 문서 파일
 ├── test-cases/docs/                       # 테스트 케이스 문서
-├── tests/                                 # TypeScript 통합 테스트
-│   ├── StandardDays26To32Test.ts         # 표준일 피임법 테스트
-│   ├── package.json
-│   └── tsconfig.json
 ├── shared/                                # KMP 공유 코드
 │   └── src/
 │       ├── commonMain/kotlin/
@@ -89,7 +85,10 @@ period-calculator-kmp/
 │       ├── jsMain/kotlin/
 │       │   ├── JsExports.kt              # JavaScript exports
 │       │   └── utils/DateUtils.kt        # JS용 날짜 변환
-│       └── commonTest/kotlin/            # Kotlin 단위 테스트
+│       └── commonTest/kotlin/            # Kotlin 테스트
+│           ├── integration/              # 통합 테스트 (Data-Driven)
+│           ├── unit/                     # 단위 테스트
+│           └── repository/               # Repository 테스트
 └── build.gradle.kts
 ```
 
@@ -125,7 +124,7 @@ const {
 } = kmp.com.bomcomes.calculator;
 
 // 라이브러리 버전 확인
-console.log(getLibraryVersion()); // "period-calculator-kmp v1.0.0 (build 597)"
+console.log(getLibraryVersion()); // "period-calculator-kmp v1.0.0 (build XXX)"
 
 // 생리 기록 (Firebase에서 가져온 데이터)
 const periods = [
@@ -232,21 +231,36 @@ val status = PeriodCalculator.getDayStatus(
 
 ## 테스트
 
+### 테스트 케이스 문서
+
+| 문서 | 설명 |
+|------|------|
+| `01-standard-days-26-32.md` | 표준 주기 (26-32일) |
+| `02-short-cycle-under-25.md` | 짧은 주기 (25일 미만) |
+| `03-long-cycle-over-33.md` | 긴 주기 (33일 이상) |
+| `04-with-pill.md` | 피임약 복용 |
+| `05-with-ovulation-test.md` | 배란 테스트기 |
+| `06-with-manual-ovulation.md` | 수동 배란일 입력 |
+| `07-with-pregnancy.md` | 임신 모드 |
+
+### 테스트 실행
+
 ```bash
-# 빌드
-./gradlew clean :shared:jsNodeProductionLibraryDistribution
+# 전체 테스트
+./gradlew :shared:jvmTest
 
-# TypeScript 통합 테스트 실행
-cd tests && npx ts-node StandardDays26To32Test.ts
+# 특정 테스트 클래스
+./gradlew :shared:jvmTest --tests "com.bomcomes.calculator.integration.WithPillTest"
 
-# Kotlin 단위 테스트 실행
-./gradlew :shared:testDebugUnitTest
+# 특정 테스트 메서드
+./gradlew :shared:jvmTest --tests "com.bomcomes.calculator.integration.WithPillTest.testTC_04_01*"
 ```
 
 ## 문서
 
 - **[BUILD_GUIDE.md](docs/BUILD_GUIDE.md)** - 빌드 가이드
 - **[FIREBASE_FUNCTIONS_GUIDE.md](docs/FIREBASE_FUNCTIONS_GUIDE.md)** - Firebase Functions 통합 가이드
+- **[REPOSITORY_PATTERN.md](docs/REPOSITORY_PATTERN.md)** - Repository 패턴 가이드
 
 ## 개발 환경
 
