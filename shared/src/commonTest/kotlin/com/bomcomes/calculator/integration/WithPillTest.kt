@@ -75,9 +75,9 @@ class WithPillTest {
         // ============================================
 
         val TEST_CASES = listOf(
-            // TC-04-01: 기본 복용 (1개월)
+            // TC-04-01-01: 기본 복용 (1개월)
             TestCase(
-                id = "TC-04-01",
+                id = "TC-04-01-01",
                 name = "기본 복용 (1개월)",
                 fromDate = LocalDate(2025, 3, 1),
                 toDate = LocalDate(2025, 3, 30),
@@ -112,9 +112,9 @@ class WithPillTest {
                 )
             ),
 
-            // TC-04-02: 휴약기 0일 (연속 복용)
+            // TC-04-01-02: 휴약기 0일 (연속 복용)
             TestCase(
-                id = "TC-04-02",
+                id = "TC-04-01-02",
                 name = "휴약기 0일 (연속 복용)",
                 fromDate = LocalDate(2025, 3, 1),
                 toDate = LocalDate(2025, 3, 30),
@@ -144,9 +144,9 @@ class WithPillTest {
                 )
             ),
 
-            // TC-04-03: 여러 패키지
+            // TC-04-01-03: 여러 패키지
             TestCase(
-                id = "TC-04-03",
+                id = "TC-04-01-03",
                 name = "여러 패키지",
                 fromDate = LocalDate(2025, 3, 1),
                 toDate = LocalDate(2025, 3, 30),
@@ -185,9 +185,9 @@ class WithPillTest {
                 )
             ),
 
-            // TC-04-04: 지연 1-7일
+            // TC-04-01-04: 지연 1-7일
             TestCase(
-                id = "TC-04-04",
+                id = "TC-04-01-04",
                 name = "지연 1-7일",
                 fromDate = LocalDate(2025, 3, 30),
                 toDate = LocalDate(2025, 4, 4),
@@ -225,9 +225,9 @@ class WithPillTest {
                 )
             ),
 
-            // TC-04-05: 지연 8일 이상
+            // TC-04-01-05: 지연 8일 이상
             TestCase(
-                id = "TC-04-05",
+                id = "TC-04-01-05",
                 name = "지연 8일 이상",
                 fromDate = LocalDate(2025, 3, 30),
                 toDate = LocalDate(2025, 4, 4),
@@ -260,9 +260,9 @@ class WithPillTest {
                 )
             ),
 
-            // TC-04-06: 5일 전 복용 (배란기 숨김)
+            // TC-04-01-06: 5일 전 복용 (배란기 숨김)
             TestCase(
-                id = "TC-04-06",
+                id = "TC-04-01-06",
                 name = "5일 전 복용 (배란기 숨김)",
                 fromDate = LocalDate(2025, 3, 1),
                 toDate = LocalDate(2025, 4, 30),
@@ -297,9 +297,9 @@ class WithPillTest {
                 )
             ),
 
-            // TC-04-07: 5일 이후 복용 (배란기 노출)
+            // TC-04-01-07: 5일 이후 복용 (배란기 노출)
             TestCase(
-                id = "TC-04-07",
+                id = "TC-04-01-07",
                 name = "5일 이후 복용 (배란기 노출)",
                 fromDate = LocalDate(2025, 3, 1),
                 toDate = LocalDate(2025, 4, 30),
@@ -356,9 +356,9 @@ class WithPillTest {
                 )
             ),
 
-            // TC-04-08: 생리 기간 사이 - 5일 전 복용 (배란기 숨김)
+            // TC-04-01-08: 생리 기간 사이 - 5일 전 복용 (배란기 숨김)
             TestCase(
-                id = "TC-04-08",
+                id = "TC-04-01-08",
                 name = "생리 기간 사이 - 5일 전 복용 (배란기 숨김)",
                 fromDate = LocalDate(2025, 1, 1),
                 toDate = LocalDate(2025, 1, 31),
@@ -388,9 +388,9 @@ class WithPillTest {
                 )
             ),
 
-            // TC-04-09: 생리 기간 사이 - 5일 이후 복용 (배란기 노출)
+            // TC-04-01-09: 생리 기간 사이 - 5일 이후 복용 (배란기 노출)
             TestCase(
-                id = "TC-04-09",
+                id = "TC-04-01-09",
                 name = "생리 기간 사이 - 5일 이후 복용 (배란기 노출)",
                 fromDate = LocalDate(2025, 1, 1),
                 toDate = LocalDate(2025, 1, 31),
@@ -430,9 +430,9 @@ class WithPillTest {
                 )
             ),
 
-            // TC-04-10: 피임약 중단 - 마지막 생리 기록 이후
+            // TC-04-01-10: 피임약 중단 - 마지막 생리 기록 이후
             TestCase(
-                id = "TC-04-10",
+                id = "TC-04-01-10",
                 name = "피임약 중단 - 마지막 생리 기록 이후",
                 fromDate = LocalDate(2025, 3, 1),
                 toDate = LocalDate(2025, 3, 31),
@@ -477,9 +477,9 @@ class WithPillTest {
                 )
             ),
 
-            // TC-04-11: 피임약 중단 - 생리 기록 사이
+            // TC-04-01-11: 피임약 중단 - 생리 기록 사이
             TestCase(
-                id = "TC-04-11",
+                id = "TC-04-01-11",
                 name = "피임약 중단 - 생리 기록 사이",
                 fromDate = LocalDate(2025, 1, 1),
                 toDate = LocalDate(2025, 1, 31),

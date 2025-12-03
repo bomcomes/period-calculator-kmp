@@ -1,6 +1,8 @@
 package com.bomcomes.calculator.integration
 
 import com.bomcomes.calculator.PeriodCalculator
+import com.bomcomes.calculator.integration.common.ExpectedCycle
+import com.bomcomes.calculator.integration.common.TestCase
 import com.bomcomes.calculator.models.*
 import com.bomcomes.calculator.repository.InMemoryPeriodRepository
 import com.bomcomes.calculator.utils.DateUtils
@@ -65,9 +67,9 @@ class LongCycleOver33Test {
         // ============================================
 
         val TEST_CASES = listOf(
-            // TC-03-01: 1일 조회 (마지막 생리 이후)
+            // TC-03-01-01: 1일 조회 (마지막 생리 이후)
             TestCase(
-                id = "TC-03-01",
+                id = "TC-03-01-01",
                 name = "1일 조회 (마지막 생리 이후)",
                 fromDate = LocalDate(2025, 4, 1),
                 toDate = LocalDate(2025, 4, 1),
@@ -89,9 +91,9 @@ class LongCycleOver33Test {
                 )
             ),
 
-            // TC-03-02: 1주일 조회 (마지막 생리 이후)
+            // TC-03-01-02: 1주일 조회 (마지막 생리 이후)
             TestCase(
-                id = "TC-03-02",
+                id = "TC-03-01-02",
                 name = "1주일 조회 (마지막 생리 이후)",
                 fromDate = LocalDate(2025, 3, 30),
                 toDate = LocalDate(2025, 4, 5),
@@ -118,9 +120,9 @@ class LongCycleOver33Test {
                 )
             ),
 
-            // TC-03-03: 1개월 조회 (마지막 생리 이후)
+            // TC-03-01-03: 1개월 조회 (마지막 생리 이후)
             TestCase(
-                id = "TC-03-03",
+                id = "TC-03-01-03",
                 name = "1개월 조회 (마지막 생리 이후)",
                 fromDate = LocalDate(2025, 3, 16),
                 toDate = LocalDate(2025, 4, 22),
@@ -157,9 +159,9 @@ class LongCycleOver33Test {
                 )
             ),
 
-            // TC-03-04: 1일 조회 (과거)
+            // TC-03-02-01: 1일 조회 (과거)
             TestCase(
-                id = "TC-03-04",
+                id = "TC-03-02-01",
                 name = "1일 조회 (과거)",
                 fromDate = LocalDate(2025, 2, 9),
                 toDate = LocalDate(2025, 2, 9),
@@ -181,9 +183,9 @@ class LongCycleOver33Test {
                 )
             ),
 
-            // TC-03-05: 1주일 조회 (과거)
+            // TC-03-02-02: 1주일 조회 (과거)
             TestCase(
-                id = "TC-03-05",
+                id = "TC-03-02-02",
                 name = "1주일 조회 (과거)",
                 fromDate = LocalDate(2025, 2, 16),
                 toDate = LocalDate(2025, 2, 22),
@@ -205,9 +207,9 @@ class LongCycleOver33Test {
                 )
             ),
 
-            // TC-03-06: 1개월 조회 (과거)
+            // TC-03-02-03: 1개월 조회 (과거)
             TestCase(
-                id = "TC-03-06",
+                id = "TC-03-02-03",
                 name = "1개월 조회 (과거)",
                 fromDate = LocalDate(2025, 1, 1),
                 toDate = LocalDate(2025, 1, 31),
@@ -239,9 +241,9 @@ class LongCycleOver33Test {
                 )
             ),
 
-            // TC-03-07: 3개월 조회
+            // TC-03-03-01: 3개월 조회
             TestCase(
-                id = "TC-03-07",
+                id = "TC-03-03-01",
                 name = "3개월 조회",
                 fromDate = LocalDate(2025, 3, 16),
                 toDate = LocalDate(2025, 6, 15),
@@ -290,9 +292,9 @@ class LongCycleOver33Test {
                 )
             ),
 
-            // TC-03-08: 생리 기간 경계 조회 (전체 5개월)
+            // TC-03-03-02: 생리 기간 경계 조회 (전체 5개월)
             TestCase(
-                id = "TC-03-08",
+                id = "TC-03-03-02",
                 name = "생리 기간 경계 조회 (전체 5개월)",
                 fromDate = LocalDate(2025, 1, 1),
                 toDate = LocalDate(2025, 5, 31),
@@ -387,9 +389,9 @@ class LongCycleOver33Test {
                 )
             ),
 
-            // TC-03-09: 생리 기간 경계 조회 (과거만)
+            // TC-03-03-03: 생리 기간 경계 조회 (과거만)
             TestCase(
-                id = "TC-03-09",
+                id = "TC-03-03-03",
                 name = "생리 기간 경계 조회 (과거만)",
                 fromDate = LocalDate(2025, 1, 1),
                 toDate = LocalDate(2025, 2, 28),
@@ -444,9 +446,9 @@ class LongCycleOver33Test {
                 )
             ),
 
-            // TC-03-10: 생리 지연 1-7일
+            // TC-03-04-01: 생리 지연 1-7일
             TestCase(
-                id = "TC-03-10",
+                id = "TC-03-04-01",
                 name = "생리 지연 1-7일 (예정일 뒤로 미룸)",
                 fromDate = LocalDate(2025, 4, 27),
                 toDate = LocalDate(2025, 5, 3),
@@ -476,9 +478,9 @@ class LongCycleOver33Test {
                 )
             ),
 
-            // TC-03-11: 생리 지연 8일 이상
+            // TC-03-04-02: 생리 지연 8일 이상
             TestCase(
-                id = "TC-03-11",
+                id = "TC-03-04-02",
                 name = "생리 지연 8일 이상 (병원 권장)",
                 fromDate = LocalDate(2025, 3, 20),
                 toDate = LocalDate(2025, 5, 10),

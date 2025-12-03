@@ -76,7 +76,7 @@ class WithOvulationTestTest {
         val TEST_CASES = listOf(
             // TC-05-01: 1일 조회 (마지막 생리 이후)
             TestCase(
-                id = "TC-05-01",
+                id = "TC-05-01-01",
                 name = "1일 조회 (마지막 생리 이후)",
                 fromDate = LocalDate(2025, 3, 18),
                 toDate = LocalDate(2025, 3, 18),
@@ -113,7 +113,7 @@ class WithOvulationTestTest {
 
             // TC-05-02: 1주일 조회 (마지막 생리 이후)
             TestCase(
-                id = "TC-05-02",
+                id = "TC-05-01-02",
                 name = "1주일 조회 (마지막 생리 이후)",
                 fromDate = LocalDate(2025, 3, 16),
                 toDate = LocalDate(2025, 3, 22),
@@ -150,7 +150,7 @@ class WithOvulationTestTest {
 
             // TC-05-03: 1개월 조회 (마지막 생리 이후)
             TestCase(
-                id = "TC-05-03",
+                id = "TC-05-01-03",
                 name = "1개월 조회 (마지막 생리 이후)",
                 fromDate = LocalDate(2025, 3, 1),
                 toDate = LocalDate(2025, 3, 31),
@@ -187,7 +187,7 @@ class WithOvulationTestTest {
 
             // TC-05-04: 1일 조회 (과거)
             TestCase(
-                id = "TC-05-04",
+                id = "TC-05-02-01",
                 name = "1일 조회 (과거)",
                 fromDate = LocalDate(2025, 2, 7),
                 toDate = LocalDate(2025, 2, 7),
@@ -214,7 +214,7 @@ class WithOvulationTestTest {
 
             // TC-05-05: 1주일 조회 (과거)
             TestCase(
-                id = "TC-05-05",
+                id = "TC-05-02-02",
                 name = "1주일 조회 (과거)",
                 fromDate = LocalDate(2025, 2, 9),
                 toDate = LocalDate(2025, 2, 15),
@@ -251,7 +251,7 @@ class WithOvulationTestTest {
 
             // TC-05-06: 1개월 조회 (과거)
             TestCase(
-                id = "TC-05-06",
+                id = "TC-05-02-03",
                 name = "1개월 조회 (과거)",
                 fromDate = LocalDate(2025, 1, 1),
                 toDate = LocalDate(2025, 1, 31),
@@ -288,7 +288,7 @@ class WithOvulationTestTest {
 
             // TC-05-07: 3개월 조회
             TestCase(
-                id = "TC-05-07",
+                id = "TC-05-03-01",
                 name = "3개월 조회",
                 fromDate = LocalDate(2025, 3, 1),
                 toDate = LocalDate(2025, 5, 31),
@@ -354,7 +354,7 @@ class WithOvulationTestTest {
 
             // TC-05-08: 생리 기간 경계 조회 (전체)
             TestCase(
-                id = "TC-05-08",
+                id = "TC-05-03-02",
                 name = "생리 기간 경계 조회 (전체)",
                 fromDate = LocalDate(2025, 1, 1),
                 toDate = LocalDate(2025, 5, 31),
@@ -472,7 +472,7 @@ class WithOvulationTestTest {
 
             // TC-05-09: 생리 기간 경계 조회 (과거만)
             TestCase(
-                id = "TC-05-09",
+                id = "TC-05-03-03",
                 name = "생리 기간 경계 조회 (과거만)",
                 fromDate = LocalDate(2025, 1, 1),
                 toDate = LocalDate(2025, 2, 28),
@@ -535,7 +535,7 @@ class WithOvulationTestTest {
 
             // TC-05-10: 생리 지연 1-7일
             TestCase(
-                id = "TC-05-10",
+                id = "TC-05-04-01",
                 name = "생리 지연 1-7일",
                 fromDate = LocalDate(2025, 3, 20),
                 toDate = LocalDate(2025, 4, 10),
@@ -570,7 +570,7 @@ class WithOvulationTestTest {
 
             // TC-05-11: 생리 지연 8일 이상
             TestCase(
-                id = "TC-05-11",
+                id = "TC-05-04-02",
                 name = "생리 지연 8일 이상",
                 fromDate = LocalDate(2025, 3, 20),
                 toDate = LocalDate(2025, 5, 10),

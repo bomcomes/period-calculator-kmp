@@ -353,15 +353,8 @@ object PeriodCalculator {
         period: Int,
         isThePill: Boolean
     ): CycleInfo {
-        // 임신 중이면 임신 정보만 반환
-        if (input.pregnancy?.isActive() == true) {
-            return CycleInfo(
-                pk = periodRecord.pk,
-                actualPeriod = DateRange(periodRecord.startDate, periodRecord.endDate),
-                period = period,
-                pregnancyStartDate = input.pregnancy.startsDate
-            )
-        }
+        // 임신 중일 때도 가임기/배란기를 계산 후 filterByPregnancy로 필터링
+        // (iOS checkPregnancy 로직과 동일: 임신 시작일 전까지는 표시)
 
         // 피임약 사용 시 thePillPeriod를 먼저 계산 (iOS와 동일하게 동적 계산)
         // 5일 규칙: 피임약을 예정일 5일 전에 시작해야 피임약 기반 계산 적용
@@ -523,6 +516,13 @@ object PeriodCalculator {
             period
         }
 
+        // 활성 임신 시 pregnancyStartDate 설정
+        val pregnancyStartDate = if (input.pregnancy?.isActive() == true) {
+            input.pregnancy.startsDate
+        } else {
+            null
+        }
+
         return CycleInfo(
             pk = periodRecord.pk,
             actualPeriod = DateRange(periodRecord.startDate, periodRecord.endDate),
@@ -535,7 +535,8 @@ object PeriodCalculator {
             thePillPeriod = thePillPeriod,
             ovulationDayPeriod = ovulationDayPeriod,
             isOvulationPeriodUserInput = hasUserOvulationInputInCycle && !isPillEffective,
-            isContinuousPillUsage = isContinuousPillUsage
+            isContinuousPillUsage = isContinuousPillUsage,
+            pregnancyStartDate = pregnancyStartDate
         )
     }
 

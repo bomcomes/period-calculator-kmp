@@ -1,6 +1,8 @@
 package com.bomcomes.calculator.integration
 
 import com.bomcomes.calculator.PeriodCalculator
+import com.bomcomes.calculator.integration.common.ExpectedCycle
+import com.bomcomes.calculator.integration.common.TestCase
 import com.bomcomes.calculator.models.*
 import com.bomcomes.calculator.repository.InMemoryPeriodRepository
 import com.bomcomes.calculator.utils.DateUtils
@@ -13,33 +15,9 @@ import kotlin.test.*
  *
  * 문서 참조: test-cases/docs/02-short-cycle-under-25.md
  *
- * TypeScript의 TEST_CASES 배열 방식과 동일한 구조로 작성
+ * TC ID 형식: TC-02-GG-CC (02: 파일번호, GG: 그룹번호, CC: 케이스번호)
  */
 class ShortCycleUnder25Test {
-
-    // ============================================
-    // 데이터 클래스 정의
-    // ============================================
-
-    data class TestCase(
-        val id: String,
-        val name: String,
-        val fromDate: LocalDate,
-        val toDate: LocalDate,
-        val today: LocalDate,
-        val expectedCycles: List<ExpectedCycle>
-    )
-
-    data class ExpectedCycle(
-        val pk: String,
-        val actualPeriod: DateRange?,
-        val delayDays: Int,
-        val delayPeriod: DateRange?,
-        val predictDays: List<DateRange>,
-        val fertileDays: List<DateRange>,
-        val ovulationDays: List<DateRange>,
-        val period: Int
-    )
 
     companion object {
         // 공통 생리 기록 (짧은 주기: 22, 18일)
@@ -65,9 +43,9 @@ class ShortCycleUnder25Test {
         // ============================================
 
         val TEST_CASES = listOf(
-            // TC-02-01: 1일 조회 (마지막 생리 이후)
+            // 그룹 1: 마지막 생리 이후 조회 (Period 3 기준)
             TestCase(
-                id = "TC-02-01",
+                id = "TC-02-01-01",
                 name = "1일 조회 (마지막 생리 이후)",
                 fromDate = LocalDate(2025, 2, 20),
                 toDate = LocalDate(2025, 2, 20),
@@ -94,9 +72,8 @@ class ShortCycleUnder25Test {
                 )
             ),
 
-            // TC-02-02: 1주일 조회 (마지막 생리 이후)
             TestCase(
-                id = "TC-02-02",
+                id = "TC-02-01-02",
                 name = "1주일 조회 (마지막 생리 이후)",
                 fromDate = LocalDate(2025, 2, 16),
                 toDate = LocalDate(2025, 2, 22),
@@ -128,9 +105,8 @@ class ShortCycleUnder25Test {
                 )
             ),
 
-            // TC-02-03: 1개월 조회 (마지막 생리 이후)
             TestCase(
-                id = "TC-02-03",
+                id = "TC-02-01-03",
                 name = "1개월 조회 (마지막 생리 이후)",
                 fromDate = LocalDate(2025, 2, 10),
                 toDate = LocalDate(2025, 3, 9),
@@ -171,9 +147,9 @@ class ShortCycleUnder25Test {
                 )
             ),
 
-            // TC-02-04: 1일 조회 (과거)
+            // 그룹 2: 과거 기록 중심 (Period 2)
             TestCase(
-                id = "TC-02-04",
+                id = "TC-02-02-01",
                 name = "1일 조회 (과거)",
                 fromDate = LocalDate(2025, 1, 23),
                 toDate = LocalDate(2025, 1, 23),
@@ -200,9 +176,8 @@ class ShortCycleUnder25Test {
                 )
             ),
 
-            // TC-02-05: 1주일 조회 (과거) - 음수 방어 로직 검증
             TestCase(
-                id = "TC-02-05",
+                id = "TC-02-02-02",
                 name = "1주일 조회 (과거) - 음수 방어 로직 검증",
                 fromDate = LocalDate(2025, 1, 26),
                 toDate = LocalDate(2025, 2, 1),
@@ -234,9 +209,8 @@ class ShortCycleUnder25Test {
                 )
             ),
 
-            // TC-02-06: 1개월 조회 (과거)
             TestCase(
-                id = "TC-02-06",
+                id = "TC-02-02-03",
                 name = "1개월 조회 (과거)",
                 fromDate = LocalDate(2025, 1, 1),
                 toDate = LocalDate(2025, 1, 22),
@@ -268,9 +242,9 @@ class ShortCycleUnder25Test {
                 )
             ),
 
-            // TC-02-07: 3개월 조회
+            // 그룹 3: 장기 조회 & 특수 구간
             TestCase(
-                id = "TC-02-07",
+                id = "TC-02-03-01",
                 name = "3개월 조회",
                 fromDate = LocalDate(2025, 2, 10),
                 toDate = LocalDate(2025, 5, 9),
@@ -343,9 +317,8 @@ class ShortCycleUnder25Test {
                 )
             ),
 
-            // TC-02-08: 생리 기간 경계 조회 (3개 주기)
             TestCase(
-                id = "TC-02-08",
+                id = "TC-02-03-02",
                 name = "생리 기간 경계 조회 (3개 주기)",
                 fromDate = LocalDate(2025, 1, 7),
                 toDate = LocalDate(2025, 4, 6),
@@ -448,9 +421,8 @@ class ShortCycleUnder25Test {
                 )
             ),
 
-            // TC-02-09: 생리 기간 경계 조회 (2개 주기)
             TestCase(
-                id = "TC-02-09",
+                id = "TC-02-03-03",
                 name = "생리 기간 경계 조회 (2개 주기)",
                 fromDate = LocalDate(2025, 1, 1),
                 toDate = LocalDate(2025, 2, 9),
@@ -505,9 +477,9 @@ class ShortCycleUnder25Test {
                 )
             ),
 
-            // TC-02-10: 생리 지연 1-7일
+            // 그룹 4: 생리 지연 케이스
             TestCase(
-                id = "TC-02-10",
+                id = "TC-02-04-01",
                 name = "생리 지연 1-7일 (예정일 뒤로 미룸)",
                 fromDate = LocalDate(2025, 3, 9),
                 toDate = LocalDate(2025, 3, 15),
@@ -542,9 +514,8 @@ class ShortCycleUnder25Test {
                 )
             ),
 
-            // TC-02-11: 생리 지연 8일 이상
             TestCase(
-                id = "TC-02-11",
+                id = "TC-02-04-02",
                 name = "생리 지연 8일 이상 (병원 권장)",
                 fromDate = LocalDate(2025, 3, 9),
                 toDate = LocalDate(2025, 3, 15),

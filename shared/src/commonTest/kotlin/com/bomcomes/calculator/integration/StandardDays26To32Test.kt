@@ -1,6 +1,8 @@
 package com.bomcomes.calculator.integration
 
 import com.bomcomes.calculator.PeriodCalculator
+import com.bomcomes.calculator.integration.common.ExpectedCycle
+import com.bomcomes.calculator.integration.common.TestCase
 import com.bomcomes.calculator.models.*
 import com.bomcomes.calculator.repository.InMemoryPeriodRepository
 import com.bomcomes.calculator.utils.DateUtils
@@ -13,34 +15,9 @@ import kotlin.test.*
  *
  * 문서 참조: test-cases/docs/01-standard-days-26-32.md
  *
- * TypeScript의 TEST_CASES 배열 방식과 동일한 구조로 작성
- * 기존 StandardDays26To32Test.kt와 비교하여 코드 중복 감소 확인
+ * TC ID 형식: TC-01-GG-CC (01: 파일번호, GG: 그룹번호, CC: 케이스번호)
  */
 class StandardDays26To32Test {
-
-    // ============================================
-    // 데이터 클래스 정의
-    // ============================================
-
-    data class TestCase(
-        val id: String,
-        val name: String,
-        val fromDate: LocalDate,
-        val toDate: LocalDate,
-        val today: LocalDate,
-        val expectedCycles: List<ExpectedCycle>
-    )
-
-    data class ExpectedCycle(
-        val pk: String,
-        val actualPeriod: DateRange?,
-        val delayDays: Int,
-        val delayPeriod: DateRange?,
-        val predictDays: List<DateRange>,
-        val fertileDays: List<DateRange>,
-        val ovulationDays: List<DateRange>,
-        val period: Int
-    )
 
     companion object {
         // 공통 생리 기록
@@ -65,7 +42,7 @@ class StandardDays26To32Test {
         val TEST_CASES = listOf(
             // 그룹 1: 마지막 생리 이후 조회 (Period 3 기준)
             TestCase(
-                id = "TC-01-01",
+                id = "TC-01-01-01",
                 name = "1일 조회 (마지막 생리 이후)",
                 fromDate = LocalDate(2025, 3, 15),
                 toDate = LocalDate(2025, 3, 15),
@@ -98,7 +75,7 @@ class StandardDays26To32Test {
             ),
 
             TestCase(
-                id = "TC-01-02",
+                id = "TC-01-01-02",
                 name = "1주일 조회 (마지막 생리 이후)",
                 fromDate = LocalDate(2025, 3, 9),
                 toDate = LocalDate(2025, 3, 15),
@@ -131,7 +108,7 @@ class StandardDays26To32Test {
             ),
 
             TestCase(
-                id = "TC-01-03",
+                id = "TC-01-01-03",
                 name = "1개월 조회 (마지막 생리 이후)",
                 fromDate = LocalDate(2025, 3, 1),
                 toDate = LocalDate(2025, 3, 31),
@@ -170,7 +147,7 @@ class StandardDays26To32Test {
 
             // 그룹 2: 과거 기록 중심 (Period 2)
             TestCase(
-                id = "TC-01-04",
+                id = "TC-01-02-01",
                 name = "1일 조회 (과거)",
                 fromDate = LocalDate(2025, 2, 7),
                 toDate = LocalDate(2025, 2, 7),
@@ -193,7 +170,7 @@ class StandardDays26To32Test {
             ),
 
             TestCase(
-                id = "TC-01-05",
+                id = "TC-01-02-02",
                 name = "1주일 조회 (과거)",
                 fromDate = LocalDate(2025, 2, 9),
                 toDate = LocalDate(2025, 2, 15),
@@ -226,7 +203,7 @@ class StandardDays26To32Test {
             ),
 
             TestCase(
-                id = "TC-01-06",
+                id = "TC-01-02-03",
                 name = "1개월 조회 (과거)",
                 fromDate = LocalDate(2025, 2, 1),
                 toDate = LocalDate(2025, 2, 28),
@@ -260,7 +237,7 @@ class StandardDays26To32Test {
 
             // 그룹 3: 장기 조회 & 특수 구간
             TestCase(
-                id = "TC-01-07",
+                id = "TC-01-03-01",
                 name = "3개월 조회",
                 fromDate = LocalDate(2025, 3, 1),
                 toDate = LocalDate(2025, 5, 31),
@@ -322,7 +299,7 @@ class StandardDays26To32Test {
             ),
 
             TestCase(
-                id = "TC-01-08",
+                id = "TC-01-03-02",
                 name = "생리 기간 경계 조회 (전체 5개월)",
                 fromDate = LocalDate(2025, 1, 1),
                 toDate = LocalDate(2025, 5, 31),
@@ -430,7 +407,7 @@ class StandardDays26To32Test {
             ),
 
             TestCase(
-                id = "TC-01-09",
+                id = "TC-01-03-03",
                 name = "생리 기간 경계 조회 (과거만)",
                 fromDate = LocalDate(2025, 1, 1),
                 toDate = LocalDate(2025, 2, 28),
@@ -487,7 +464,7 @@ class StandardDays26To32Test {
 
             // 그룹 4: 생리 지연 케이스
             TestCase(
-                id = "TC-01-10",
+                id = "TC-01-04-01",
                 name = "생리 지연 1-7일 (예정일 뒤로 미룸)",
                 fromDate = LocalDate(2025, 3, 20),
                 toDate = LocalDate(2025, 4, 10),
@@ -518,7 +495,7 @@ class StandardDays26To32Test {
             ),
 
             TestCase(
-                id = "TC-01-11",
+                id = "TC-01-04-02",
                 name = "생리 지연 8일 이상 (병원 권장)",
                 fromDate = LocalDate(2025, 3, 20),
                 toDate = LocalDate(2025, 5, 10),
@@ -591,21 +568,17 @@ class StandardDays26To32Test {
         testCase: TestCase,
         actualCycles: List<CycleInfo>
     ) {
-        // 주기 개수 검증
         assertEquals(
             testCase.expectedCycles.size,
             actualCycles.size,
             "[${testCase.id}] 주기 개수 불일치"
         )
 
-        // 각 주기 검증
         testCase.expectedCycles.forEachIndexed { index, expected ->
             val actual = actualCycles[index]
 
-            // pk 검증
             assertEquals(expected.pk, actual.pk, "[${testCase.id}] Cycle $index: pk 불일치")
 
-            // actualPeriod 검증
             if (expected.actualPeriod != null) {
                 assertNotNull(actual.actualPeriod, "[${testCase.id}] Cycle $index: actualPeriod null")
                 assertEquals(
@@ -620,14 +593,12 @@ class StandardDays26To32Test {
                 )
             }
 
-            // delayDays 검증
             assertEquals(
                 expected.delayDays,
                 actual.delayTheDays,
                 "[${testCase.id}] Cycle $index: delayDays 불일치"
             )
 
-            // delayPeriod 검증
             if (expected.delayPeriod != null) {
                 assertNotNull(actual.delayDay, "[${testCase.id}] Cycle $index: delayPeriod null")
                 assertEquals(
@@ -644,7 +615,6 @@ class StandardDays26To32Test {
                 assertNull(actual.delayDay, "[${testCase.id}] Cycle $index: delayPeriod should be null")
             }
 
-            // predictDays 검증
             assertEquals(
                 expected.predictDays.size,
                 actual.predictDays.size,
@@ -663,7 +633,6 @@ class StandardDays26To32Test {
                 )
             }
 
-            // fertileDays 검증
             assertEquals(
                 expected.fertileDays.size,
                 actual.fertileDays.size,
@@ -682,7 +651,6 @@ class StandardDays26To32Test {
                 )
             }
 
-            // ovulationDays 검증
             assertEquals(
                 expected.ovulationDays.size,
                 actual.ovulationDays.size,
@@ -701,7 +669,6 @@ class StandardDays26To32Test {
                 )
             }
 
-            // period 검증
             assertEquals(
                 expected.period,
                 actual.period,
@@ -722,11 +689,9 @@ class StandardDays26To32Test {
 
         TEST_CASES.forEach { testCase ->
             try {
-                // Repository 설정
                 val repository = InMemoryPeriodRepository()
                 setupCommonData(repository)
 
-                // 계산 실행
                 val cycles = PeriodCalculator.calculateCycleInfo(
                     repository = repository,
                     fromDate = DateUtils.toJulianDay(testCase.fromDate),
@@ -734,7 +699,6 @@ class StandardDays26To32Test {
                     today = DateUtils.toJulianDay(testCase.today)
                 )
 
-                // 검증
                 assertCycleInfo(testCase, cycles)
 
                 passedCount++
@@ -746,7 +710,6 @@ class StandardDays26To32Test {
             }
         }
 
-        // 최종 결과 출력
         println("\n========================================")
         println("테스트 결과: $passedCount/${TEST_CASES.size} 통과")
         println("========================================")
