@@ -67,7 +67,7 @@ class WithPregnancyTest {
      * TC-07-01-01: 임신 중 생리 예측 비활성화
      *
      * 임신 모드 활성화 시 생리 예정일, 가임기, 배란기가 모두 비활성화되는지 검증
-     * 조회 범위(3월)에 생리 기록이 없고, 임신 중이므로 0개 주기 반환
+     * 조회 범위(3월)에 생리 기록이 없지만, 임신 중이므로 마지막 생리 반환 (pregnancyStartDate 전달용)
      */
     @Test
     fun testTC_07_01_01_PregnancyModeDisablesPrediction() = runTest {
@@ -77,7 +77,27 @@ class WithPregnancyTest {
             fromDate = LocalDate(2025, 3, 1),
             toDate = LocalDate(2025, 3, 31),
             today = LocalDate(2025, 3, 15),
-            expectedCycles = emptyList()
+            expectedCycles = listOf(
+                ExpectedCycle(
+                    pk = "2",
+                    actualPeriod = DateRange(
+                        startDate = DateUtils.toJulianDay(PERIOD_2_START),
+                        endDate = DateUtils.toJulianDay(PERIOD_2_END)
+                    ),
+                    delayDays = 0,
+                    delayPeriod = null,
+                    predictDays = emptyList(),
+                    // 가임기/배란기는 조회 범위(3월) 밖이므로 빈 배열
+                    fertileDays = emptyList(),
+                    ovulationDays = emptyList(),
+                    period = 28,
+                    isOvulationUserInput = false,
+                    ovulationBasedPeriod = null,
+                    pillBasedPeriod = null,
+                    remainingPlaceboDay = null,
+                    pregnancyStartDate = DateUtils.toJulianDay(PREGNANCY_START_DATE_GROUP1)
+                )
+            )
         )
 
         val repository = setupGroup1Data()
@@ -145,8 +165,28 @@ class WithPregnancyTest {
             fromDate = LocalDate(2025, 3, 1),
             toDate = LocalDate(2025, 3, 31),
             today = LocalDate(2025, 3, 15),
-            // 문서 기준: 0개 주기 (임신 중 조회 범위 밖 생리는 제외)
-            expectedCycles = emptyList()
+            // 조회 범위(3월)에 생리 없지만, 임신 중이므로 마지막 생리 반환
+            expectedCycles = listOf(
+                ExpectedCycle(
+                    pk = "2",
+                    actualPeriod = DateRange(
+                        startDate = DateUtils.toJulianDay(PERIOD_2_START),
+                        endDate = DateUtils.toJulianDay(PERIOD_2_END)
+                    ),
+                    delayDays = 0,
+                    delayPeriod = null,
+                    predictDays = emptyList(),
+                    // 그룹 2: 임신 시작일(2/1)이 생리 시작일과 같으므로 가임기/배란기 빈 배열
+                    fertileDays = emptyList(),
+                    ovulationDays = emptyList(),
+                    period = 28,
+                    isOvulationUserInput = false,
+                    ovulationBasedPeriod = null,
+                    pillBasedPeriod = null,
+                    remainingPlaceboDay = null,
+                    pregnancyStartDate = DateUtils.toJulianDay(PREGNANCY_START_DATE_GROUP2)
+                )
+            )
         )
 
         val repository = setupGroup2Data()

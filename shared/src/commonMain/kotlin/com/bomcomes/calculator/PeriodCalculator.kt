@@ -53,7 +53,16 @@ object PeriodCalculator {
         val firstPeriod = periodsInRange.firstOrNull()
         if (firstPeriod == null || fromDate < firstPeriod.startDate) {
             val beforeDate = firstPeriod?.let { it.startDate - 1 } ?: fromDate
-            repository.getLastPeriodBefore(beforeDate, excludeBeforeDate)
+
+            // 임신 중이고 조회 범위에 생리가 없으면 excludeBeforeDate 무시
+            // (마지막 생리를 반환하여 pregnancyStartDate 정보 전달)
+            val effectiveExcludeDate = if (periodsInRange.isEmpty() && pregnancy?.isActive() == true) {
+                null
+            } else {
+                excludeBeforeDate
+            }
+
+            repository.getLastPeriodBefore(beforeDate, effectiveExcludeDate)
                 ?.let { periodsInRange.add(0, it) }
         }
 
@@ -417,9 +426,11 @@ object PeriodCalculator {
         // 예정일 계산 우선순위: 피임약 > 배란일 기준 > 일반 주기
         val effectivePeriod = thePillPeriod ?: ovulationDayPeriod ?: period
 
-        // 지연 일수 계산 (연속 복용 시 지연 없음)
+        // 지연 일수 계산 (연속 복용 또는 임신 중일 때 지연 없음)
         val delayDays = if (isThePill && input.pillSettings.restPill == 0) {
             0  // 연속 복용 시 지연 개념 없음
+        } else if (input.pregnancy?.isActive() == true) {
+            0  // 임신 중일 때 지연 개념 없음
         } else {
             CycleCalculator.calculateDelayDays(
                 lastTheDayStart = periodRecord.startDate,
@@ -430,9 +441,11 @@ object PeriodCalculator {
             )
         }
 
-        // 지연 기간 (연속 복용 시 지연 없음)
+        // 지연 기간 (연속 복용 또는 임신 중일 때 지연 없음)
         val delayPeriodRaw = if (isThePill && input.pillSettings.restPill == 0) {
             null  // 연속 복용 시 지연 기간 없음
+        } else if (input.pregnancy?.isActive() == true) {
+            null  // 임신 중일 때 지연 기간 없음
         } else {
             CycleCalculator.calculateDelayPeriod(
                 lastTheDayStart = periodRecord.startDate,

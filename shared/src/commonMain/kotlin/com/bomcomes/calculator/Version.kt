@@ -6,7 +6,7 @@ package com.bomcomes.calculator
  */
 object Version {
     const val VERSION = "1.0.0"
-    const val BUILD_NUMBER = 676
+    const val BUILD_NUMBER = 681
 
     fun getVersionString(): String = "period-calculator-kmp v$VERSION (build $BUILD_NUMBER)"
 }
