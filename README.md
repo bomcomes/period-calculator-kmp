@@ -179,6 +179,125 @@ console.log('주기 일차:', status.gap);
 console.log('주기:', status.period);
 ```
 
+### JsRepositoryWrapper 사용법 (Firebase Functions)
+
+`JsRepositoryWrapper`는 Firestore 데이터를 메모리에 로드하여 계산에 사용하는 래퍼입니다.
+
+```javascript
+const kmp = require('./shared/build/dist/js/productionLibrary/period-calculator-kmp-shared');
+const {
+  JsRepositoryWrapper,
+  PeriodRecord,
+  PeriodSettings,
+  PillSettings,
+  PillPackage,
+  OvulationTest,
+  OvulationDay,
+  PregnancyInfo,
+  WeightUnit,
+  TestResult,
+  stringToJulianDay,
+  julianDayToString,
+  calculateCycleInfo
+} = kmp.com.bomcomes.calculator;
+
+// 1. Repository 생성
+const repository = new JsRepositoryWrapper();
+
+// ============================================
+// 필수 데이터 (생리 예정일 계산에 필요)
+// ============================================
+
+// 생리 기록 (theDays)
+repository.addPeriod(new PeriodRecord(
+  "period-1",                           // pk
+  stringToJulianDay("2025-01-01"),      // startDate
+  stringToJulianDay("2025-01-05")       // endDate
+));
+repository.addPeriod(new PeriodRecord(
+  "period-2",
+  stringToJulianDay("2025-02-01"),
+  stringToJulianDay("2025-02-05")
+));
+
+// 주기 설정 (theDaySettings)
+repository.setPeriodSettings(new PeriodSettings(
+  30,     // manualAverageCycle
+  5,      // manualAverageDay
+  28,     // autoAverageCycle
+  5,      // autoAverageDay
+  false   // isAutoCalc
+));
+
+// 피임약 설정 (thePillSettings) - 선택적
+repository.setPillSettings(new PillSettings(
+  false,  // isCalculatingWithPill
+  21,     // pillCount
+  7       // restPill
+));
+
+// 피임약 패키지 (thePills) - 선택적
+repository.addPillPackage(new PillPackage(
+  stringToJulianDay("2025-01-01")       // packageStart
+));
+
+// 배란 테스트 결과 (theOvulationTestResults) - 선택적
+repository.addOvulationTest(new OvulationTest(
+  stringToJulianDay("2025-02-14"),      // date
+  TestResult.POSITIVE                    // result: NEGATIVE, POSITIVE, UNCLEAR
+));
+
+// 배란일 직접 입력 (theOvulationDays) - 선택적
+repository.addUserOvulationDay(new OvulationDay(
+  stringToJulianDay("2025-02-14")       // date
+));
+
+// 임신 정보 (thePregnancys) - 선택적
+repository.setActivePregnancy(new PregnancyInfo(
+  "pregnancy-1",                         // id
+  "아기이름",                             // babyName
+  true,                                  // isDueDateDecided
+  stringToJulianDay("2025-01-01"),       // lastTheDayDate
+  stringToJulianDay("2025-10-08"),       // dueDate
+  55.0,                                  // beforePregnancyWeight
+  WeightUnit.KG,                         // weightUnit
+  false,                                 // isMultipleBirth
+  false,                                 // isMiscarriage
+  stringToJulianDay("2025-01-15"),       // startsDate (필수)
+  false,                                 // isEnded
+  Date.now(),                            // modifyDate
+  Date.now(),                            // regDate
+  false                                  // isDeleted
+));
+
+// ============================================
+// 계산 실행
+// ============================================
+
+// 주기 정보 계산
+const cycles = await calculateCycleInfo(
+  repository,
+  stringToJulianDay("2025-02-01"),       // fromDate
+  stringToJulianDay("2025-02-28"),       // toDate
+  stringToJulianDay("2025-02-15")        // today
+);
+
+// 데이터 초기화 (다른 사용자 처리 시)
+repository.clear();
+```
+
+### Firestore → JsRepositoryWrapper 매핑
+
+| Firestore 컬렉션 | Repository 메서드 | 모델 |
+|-----------------|------------------|------|
+| `theDays` | `addPeriod()` | `PeriodRecord` |
+| `theDaySettings` | `setPeriodSettings()` | `PeriodSettings` |
+| `theOvulationDays` | `addUserOvulationDay()` | `OvulationDay` |
+| `theOvulationTestResults` | `addOvulationTest()` | `OvulationTest` |
+| `thePills` | `addPillPackage()` | `PillPackage` |
+| `thePillSettings` | `setPillSettings()` | `PillSettings` |
+| `thePregnancys` | `setActivePregnancy()` | `PregnancyInfo` |
+
 ### Kotlin (Android/JVM)
 
 ```kotlin

@@ -91,3 +91,109 @@
 - 📖 **Read** test-cases/docs/
 - ✏️ **Write** test code
 - 🚫 **Never modify** test-cases/docs/
+
+## Firestore 구조
+
+```
+/user_data/{userId}/
+
+# ========== 필수 (생리 예정일 계산에 필요) ==========
+
+├── theDays/{docId}                # 생리 기록
+│   ├── startDate: number          # Julian Day
+│   ├── endDate: number | null     # Julian Day
+│   ├── isDeleted: boolean
+│   ├── modifyDate: number
+│   └── regDate: number
+│
+├── theDaySettings/ONE_DOCUMENT    # 주기 설정
+│   ├── autoAverageCycle: number   # 자동 계산된 평균 주기
+│   ├── autoAverageDay: number     # 자동 계산된 평균 생리 기간
+│   ├── manualAverageCycle: number # 수동 설정된 평균 주기
+│   ├── manualAverageDay: number   # 수동 설정된 평균 생리 기간
+│   ├── isAutoCalc: boolean        # 자동 계산 여부
+│   ├── modifyDate: number         # timestamp (밀리초)
+│   └── regDate: number            # timestamp (밀리초)
+│
+├── theOvulationDays/{docId}       # 배란일 (직접 입력)
+│   ├── date: number               # Julian Day
+│   ├── isDeleted: boolean
+│   ├── modifyDate: number
+│   └── regDate: number
+│
+├── theOvulationTestResults/{docId} # 배란 테스트 결과
+│   ├── date: number               # Julian Day
+│   ├── result: string             # "none"|"negative"|"positive"|"indeterminate"
+│   ├── isDeleted: boolean
+│   ├── modifyDate: number
+│   └── regDate: number
+│
+├── thePills/{docId}               # 피임약 복용
+│   ├── dates: number[]            # Julian Day 배열 (복용 날짜들)
+│   ├── startDate: number          # Julian Day
+│   ├── endDate: number            # Julian Day
+│   ├── isDeleted: boolean
+│   ├── modifyDate: number
+│   └── regDate: number
+│
+├── thePillSettings/ONE_DOCUMENT   # 피임약 설정
+│   ├── pillCount: number          # 피임약 개수 (예: 21)
+│   ├── restPill: number           # 휴약기 (예: 7)
+│   ├── isCalculatingWithPill: boolean  # 피임약 기반 계산 여부
+│   ├── modifyDate: number         # timestamp (밀리초)
+│   └── regDate: number            # timestamp (밀리초)
+│
+├── thePregnancys/{docId}          # 임신 기록
+│   ├── startDate: number          # Julian Day - 임신 시작일
+│   ├── dueDate: number            # Julian Day - 출산 예정일
+│   ├── isEnded: boolean
+│   ├── isMiscarriage: boolean
+│   ├── isDeleted: boolean
+│   ├── modifyDate: number
+│   └── regDate: number
+│
+├── userInfo/ONE_DOCUMENT          # 사용자 정보
+│   ├── authEmail: string          # 이메일
+│   ├── authProvider: string       # 인증 방식 ("password", "google" 등)
+│   ├── birthday: number           # Julian Day
+│   ├── character: string | null   # 캐릭터
+│   ├── gender: string | null      # 성별
+│   ├── name: string               # 이름
+│   ├── profileUrl: string | null  # 프로필 이미지 URL
+│   ├── statusMessage: string | null # 상태 메시지
+│   ├── wantBaby: boolean          # 임신 희망 여부
+│   ├── modifyDate: number         # timestamp (밀리초)
+│   └── regDate: number            # timestamp (밀리초)
+│
+# ========== 옵션 (추가 기록) ==========
+│
+├── theFlows/{docId}               # 출혈량
+│   ├── date: number               # Julian Day
+│   ├── scale: number              # 출혈량 (1~5 등)
+│   ├── isDeleted: boolean
+│   ├── modifyDate: number
+│   └── regDate: number
+│
+├── theLoves/{docId}               # 성관계 기록
+│   ├── date: number               # Julian Day
+│   ├── count: number
+│   ├── isContraception: boolean   # 피임 여부
+│   ├── isDeleted: boolean
+│   ├── modifyDate: number
+│   └── regDate: number
+│
+├── theBasalBodyTemperatures/{docId} # 기초체온
+│   ├── date: number               # Julian Day
+│   ├── temperature: number        # 체온 (예: 37.5)
+│   ├── temperatureUnit: string    # "c" | "f"
+│   ├── isDeleted: boolean
+│   ├── modifyDate: number
+│   └── regDate: number
+│
+└── theCervicalMucusQualitys/{docId} # 자궁경부 점액
+    ├── date: number               # Julian Day
+    ├── quality: string            # "none"|"dry"|"sticky"|"creamy"|"watery"|"egg white"
+    ├── isDeleted: boolean
+    ├── modifyDate: number
+    └── regDate: number
+```
