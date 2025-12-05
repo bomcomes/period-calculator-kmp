@@ -10,7 +10,10 @@
       "Bash(./gradlew shared:test:*)",
       "Bash(./gradlew :shared:test:*)",
       "Bash(./gradlew:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(find:*)",
+      "Bash(wc:*)",
+      "WebFetch(domain:docs.google.com)"
     ],
     "deny": [],
     "ask": []
