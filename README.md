@@ -4,9 +4,11 @@
 
 ## 지원 플랫폼
 
-- **Android** (`.aar`)
-- **iOS** (`.framework`)
-- **JavaScript/Node.js** (`.js` + `.d.ts`)
+| 플랫폼 | 상태 | 빌드 결과물 |
+|--------|------|-------------|
+| JavaScript/Node.js | ✅ 사용 가능 | `.js` + `.d.ts` |
+| Android | 🔜 추후 지원 | `.aar` |
+| iOS | 🔜 추후 지원 | `.framework` |
 
 ## 주요 기능
 
@@ -112,178 +114,131 @@ shared/build/dist/js/productionLibrary/
 
 ### JavaScript/TypeScript (Firebase Functions)
 
-```javascript
-const kmp = require('./shared/build/dist/js/productionLibrary/period-calculator-kmp-shared');
-const {
-  calculateCycleInfo,
-  getDayStatus,
-  stringToJulianDay,
-  julianDayToString,
-  JsPeriodRecord,
-  getLibraryVersion
-} = kmp.com.bomcomes.calculator;
+`JsRepositoryWrapper`를 사용하여 Firestore 데이터를 메모리에 로드한 후 계산합니다.
+
+```typescript
+import {
+    JsRepositoryWrapper,
+    PeriodRecord,
+    PeriodSettings,
+    calculateCycleInfo,
+    stringToJulianDay,
+    julianDayToString,
+    getLibraryVersion
+} from 'period-calculator-kmp-shared';
 
 // 라이브러리 버전 확인
 console.log(getLibraryVersion()); // "period-calculator-kmp v1.0.0 (build XXX)"
 
-// 생리 기록 (Firebase에서 가져온 데이터)
-const periods = [
-  new JsPeriodRecord(
-    "1",                              // pk
-    stringToJulianDay("2025-01-01"), // startDate (julianDay)
-    stringToJulianDay("2025-01-05")  // endDate (julianDay)
-  ),
-  new JsPeriodRecord(
-    "2",
-    stringToJulianDay("2025-02-01"),
-    stringToJulianDay("2025-02-05")
-  ),
-  new JsPeriodRecord(
-    "3",
-    stringToJulianDay("2025-03-01"),
-    stringToJulianDay("2025-03-05")
-  )
-];
-
-// 주기 정보 계산
-const cycles = calculateCycleInfo(
-  periods,
-  stringToJulianDay("2025-03-01"),  // fromDate
-  stringToJulianDay("2025-03-31"),  // toDate
-  stringToJulianDay("2025-03-15"),  // today
-  30,  // averageCycle
-  5    // periodDays
-);
-
-// 결과 확인
-const cycle = cycles[0];
-console.log('pk:', cycle.pk);
-console.log('실제 생리:', julianDayToString(cycle.actualPeriod.startDate), '~', julianDayToString(cycle.actualPeriod.endDate));
-console.log('생리 예정일:', cycle.predictDays.map(d => `${julianDayToString(d.startDate)}~${julianDayToString(d.endDate)}`));
-console.log('배란기:', cycle.ovulationDays.map(d => `${julianDayToString(d.startDate)}~${julianDayToString(d.endDate)}`));
-console.log('가임기:', cycle.fertileDays.map(d => `${julianDayToString(d.startDate)}~${julianDayToString(d.endDate)}`));
-console.log('지연 일수:', cycle.delayDays);
-
-// 특정 날짜의 상태 확인
-const status = getDayStatus(
-  periods,
-  stringToJulianDay("2025-03-14"),  // targetDate
-  stringToJulianDay("2025-03-15"),  // today
-  30,  // averageCycle
-  5    // periodDays
-);
-
-console.log('날짜:', julianDayToString(status.date));
-console.log('상태:', status.type);  // "OVULATION", "FERTILE", "PERIOD_ONGOING" 등
-console.log('주기 일차:', status.gap);
-console.log('주기:', status.period);
-```
-
-### JsRepositoryWrapper 사용법 (Firebase Functions)
-
-`JsRepositoryWrapper`는 Firestore 데이터를 메모리에 로드하여 계산에 사용하는 래퍼입니다.
-
-```javascript
-const kmp = require('./shared/build/dist/js/productionLibrary/period-calculator-kmp-shared');
-const {
-  JsRepositoryWrapper,
-  PeriodRecord,
-  PeriodSettings,
-  PillSettings,
-  PillPackage,
-  OvulationTest,
-  OvulationDay,
-  PregnancyInfo,
-  WeightUnit,
-  TestResult,
-  stringToJulianDay,
-  julianDayToString,
-  calculateCycleInfo
-} = kmp.com.bomcomes.calculator;
-
 // 1. Repository 생성
 const repository = new JsRepositoryWrapper();
 
-// ============================================
-// 필수 데이터 (생리 예정일 계산에 필요)
-// ============================================
-
-// 생리 기록 (theDays)
+// 2. Firestore에서 가져온 데이터로 Repository 채우기
+// 생리 기록 추가
 repository.addPeriod(new PeriodRecord(
-  "period-1",                           // pk
-  stringToJulianDay("2025-01-01"),      // startDate
-  stringToJulianDay("2025-01-05")       // endDate
+    "1",                              // pk
+    stringToJulianDay("2025-01-01"),  // startDate (Julian Day)
+    stringToJulianDay("2025-01-05")   // endDate (Julian Day)
 ));
 repository.addPeriod(new PeriodRecord(
-  "period-2",
-  stringToJulianDay("2025-02-01"),
-  stringToJulianDay("2025-02-05")
+    "2",
+    stringToJulianDay("2025-02-01"),
+    stringToJulianDay("2025-02-05")
+));
+repository.addPeriod(new PeriodRecord(
+    "3",
+    stringToJulianDay("2025-03-01"),
+    stringToJulianDay("2025-03-05")
 ));
 
-// 주기 설정 (theDaySettings)
+// 주기 설정
 repository.setPeriodSettings(new PeriodSettings(
-  30,     // manualAverageCycle
-  5,      // manualAverageDay
-  28,     // autoAverageCycle
-  5,      // autoAverageDay
-  false   // isAutoCalc
+    28,    // autoAverageCycle
+    5,     // autoAverageDay
+    null,  // manualAverageCycle (optional)
+    null,  // manualAverageDay (optional)
+    true   // isAutoCalc
 ));
 
-// 피임약 설정 (thePillSettings) - 선택적
-repository.setPillSettings(new PillSettings(
-  false,  // isCalculatingWithPill
-  21,     // pillCount
-  7       // restPill
-));
+// 3. 주기 정보 계산
+const fromDate = stringToJulianDay("2025-03-01");
+const toDate = stringToJulianDay("2025-03-31");
+const today = stringToJulianDay("2025-03-15");
 
-// 피임약 패키지 (thePills) - 선택적
-repository.addPillPackage(new PillPackage(
-  stringToJulianDay("2025-01-01")       // packageStart
-));
+const cycles = await calculateCycleInfo(repository, fromDate, toDate, today);
 
-// 배란 테스트 결과 (theOvulationTestResults) - 선택적
-repository.addOvulationTest(new OvulationTest(
-  stringToJulianDay("2025-02-14"),      // date
-  TestResult.POSITIVE                    // result: NEGATIVE, POSITIVE, UNCLEAR
-));
+// 4. 결과 사용
+cycles.forEach(cycle => {
+    console.log('pk:', cycle.pk);
+    console.log('주기:', cycle.period, '일');
 
-// 배란일 직접 입력 (theOvulationDays) - 선택적
-repository.addUserOvulationDay(new OvulationDay(
-  stringToJulianDay("2025-02-14")       // date
-));
+    if (cycle.actualPeriod) {
+        console.log('실제 생리:',
+            julianDayToString(cycle.actualPeriod.startDate), '~',
+            julianDayToString(cycle.actualPeriod.endDate)
+        );
+    }
 
-// 임신 정보 (thePregnancys) - 선택적
-repository.setActivePregnancy(new PregnancyInfo(
-  "pregnancy-1",                         // id
-  "아기이름",                             // babyName
-  true,                                  // isDueDateDecided
-  stringToJulianDay("2025-01-01"),       // lastTheDayDate
-  stringToJulianDay("2025-10-08"),       // dueDate
-  55.0,                                  // beforePregnancyWeight
-  WeightUnit.KG,                         // weightUnit
-  false,                                 // isMultipleBirth
-  false,                                 // isMiscarriage
-  stringToJulianDay("2025-01-15"),       // startsDate (필수)
-  false,                                 // isEnded
-  Date.now(),                            // modifyDate
-  Date.now(),                            // regDate
-  false                                  // isDeleted
-));
+    console.log('생리 예정일:', cycle.predictDays.map(d =>
+        `${julianDayToString(d.startDate)}~${julianDayToString(d.endDate)}`
+    ));
+    console.log('배란일:', cycle.ovulationDays.map(d =>
+        `${julianDayToString(d.startDate)}~${julianDayToString(d.endDate)}`
+    ));
+    console.log('가임기:', cycle.fertileDays.map(d =>
+        `${julianDayToString(d.startDate)}~${julianDayToString(d.endDate)}`
+    ));
+    console.log('지연 일수:', cycle.delayDays);
+});
 
-// ============================================
-// 계산 실행
-// ============================================
-
-// 주기 정보 계산
-const cycles = await calculateCycleInfo(
-  repository,
-  stringToJulianDay("2025-02-01"),       // fromDate
-  stringToJulianDay("2025-02-28"),       // toDate
-  stringToJulianDay("2025-02-15")        // today
-);
-
-// 데이터 초기화 (다른 사용자 처리 시)
+// 5. 데이터 초기화 (다른 사용자 처리 시)
 repository.clear();
+```
+
+### 필수 데이터 설정 (Firestore 데이터에 따라)
+
+사용자 데이터에 해당 정보가 있으면 반드시 Repository에 추가해야 합니다.
+
+```typescript
+import {
+    PillSettings,
+    PillPackage,
+    OvulationTest,
+    OvulationDay,
+    PregnancyInfo
+} from 'period-calculator-kmp-shared';
+
+// 피임약 설정 (thePillSettings)
+repository.setPillSettings(new PillSettings(
+    true,   // isCalculatingWithPill - 피임약 기반 계산 여부
+    21,     // pillCount
+    7       // restPill
+));
+
+// 피임약 패키지 (thePills)
+repository.addPillPackage(new PillPackage(
+    stringToJulianDay("2025-01-10")  // packageStart
+));
+
+// 배란 테스트 결과 (theOvulationTestResults)
+repository.addOvulationTest(new OvulationTest(
+    "test-1",
+    stringToJulianDay("2025-01-15"),
+    "positive"  // "positive" | "negative" | "indeterminate"
+));
+
+// 배란일 직접 입력 (theOvulationDays)
+repository.addUserOvulationDay(new OvulationDay(
+    "ovul-1",
+    stringToJulianDay("2025-01-16")
+));
+
+// 임신 기록 (thePregnancys) - 활성 임신만
+repository.setActivePregnancy(new PregnancyInfo(
+    stringToJulianDay("2025-01-01"),  // startDate
+    stringToJulianDay("2025-10-01"),  // dueDate
+    false                              // isEnded
+));
 ```
 
 ### Firestore → JsRepositoryWrapper 매핑
@@ -298,7 +253,15 @@ repository.clear();
 | `thePillSettings` | `setPillSettings()` | `PillSettings` |
 | `thePregnancys` | `setActivePregnancy()` | `PregnancyInfo` |
 
-### Kotlin (Android/JVM)
+### 유틸리티 함수
+
+```typescript
+// 날짜 변환
+const julianDay = stringToJulianDay("2025-03-05");  // ISO-8601 → Julian Day
+const dateStr = julianDayToString(julianDay);        // Julian Day → ISO-8601
+```
+
+### Kotlin (JVM 테스트용)
 
 ```kotlin
 import com.bomcomes.calculator.PeriodCalculator
@@ -315,22 +278,15 @@ val periods = listOf(
         pk = "2",
         startDate = DateUtils.toJulianDay(LocalDate(2025, 2, 1)),
         endDate = DateUtils.toJulianDay(LocalDate(2025, 2, 5))
-    ),
-    PeriodRecord(
-        pk = "3",
-        startDate = DateUtils.toJulianDay(LocalDate(2025, 3, 1)),
-        endDate = DateUtils.toJulianDay(LocalDate(2025, 3, 5))
     )
 )
 
 val input = CycleInput(
     periods = periods,
     periodSettings = PeriodSettings(
-        manualAverageCycle = 30,
-        manualAverageDay = 5,
-        autoAverageCycle = 30,
+        autoAverageCycle = 28,
         autoAverageDay = 5,
-        isAutoCalc = false
+        isAutoCalc = true
     )
 )
 
